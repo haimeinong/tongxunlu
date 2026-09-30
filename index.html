@@ -1,0 +1,2237 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>车间通讯录与排产工作台</title>
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#1f2a44">
+<!-- 平板/手机安装到桌面（PWA） -->
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="车间排产">
+<link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+<style>
+/* SECTION: base-css */
+:root { --ink:#24314d; --gray:#6b7280; --line:#d5dae2; --bg:#eef1f5; --panel:#fff;
+  --blue:#2e5395; --blue-d:#1f2a44; --green:#1a7f4e; --amber:#b45f06; --red:#b42318; --cyan:#0e7490; }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--bg); color:var(--ink); font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif; font-size:14px; }
+header.top { background:var(--blue-d); color:#fff; padding:0 14px; display:flex; align-items:center; gap:4px; flex-wrap:wrap; position:sticky; top:0; z-index:20; box-shadow:0 2px 6px rgba(0,0,0,.25); }
+header.top .brand { font-weight:700; font-size:16px; padding:12px 12px 12px 0; letter-spacing:.5px; white-space:nowrap; }
+header.top .navbtn { color:#cdd6e4; padding:13px 14px; font-size:14px; border:none; background:none; cursor:pointer; border-bottom:3px solid transparent; font-family:inherit; }
+header.top .navbtn:hover { color:#fff; }
+header.top .navbtn.on { color:#fff; border-bottom-color:#4f8ff7; background:rgba(255,255,255,.06); }
+header.top .spacer { flex:1; }
+header.top .ghost { border:1px solid #4a5878; background:transparent; color:#cdd6e4; border-radius:4px; padding:5px 12px; cursor:pointer; font-size:12px; font-family:inherit; }
+header.top .ghost:hover { color:#fff; border-color:#8fa4c8; }
+main { max-width:1280px; margin:0 auto; padding:16px 14px 80px; }
+.view { display:none; } .view.on { display:block; }
+.card { background:var(--panel); border:1px solid var(--line); border-radius:6px; margin-bottom:14px; box-shadow:0 1px 2px rgba(20,30,60,.05); }
+.card > h2 { margin:0; font-size:15px; background:#f3f5f9; padding:9px 14px; border-bottom:1px solid var(--line); border-radius:6px 6px 0 0; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; }
+.card > h2 .sub { font-size:12px; color:var(--gray); font-weight:400; }
+.pad { padding:12px 14px; }
+.rowflex { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+.muted { color:var(--gray); font-size:12px; }
+.push { flex:1; }
+/* SECTION: control-css */
+button { cursor:pointer; border:1px solid var(--line); background:#fff; border-radius:4px; padding:5px 12px; font-size:13px; color:var(--ink); font-family:inherit; }
+button:hover { background:#f0f3f8; }
+button.pri { background:var(--blue); border-color:var(--blue); color:#fff; }
+button.pri:hover { background:#27467d; }
+button.ok { background:var(--green); border-color:var(--green); color:#fff; }
+button.ok:hover { background:#156840; }
+button.danger { color:var(--red); }
+button.mini-btn { padding:3px 8px; font-size:12px; }
+button.mini-btn.pri { color:#fff; }
+input[type=text],input[type=number],input[type=date],input[type=search],input[type=tel],textarea,select { font:inherit; border:1px solid var(--line); border-radius:4px; padding:6px 8px; background:#fff; color:var(--ink); font-family:inherit; }
+input:focus,select:focus,textarea:focus { outline:2px solid #b9cdf0; border-color:var(--blue); }
+.form-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; align-items:end; }
+.fld label { display:block; font-size:12px; color:var(--gray); margin-bottom:3px; }
+.fld input,.fld select { width:100%; }
+.toolbar { display:flex; gap:8px 10px; align-items:center; flex-wrap:wrap; background:#f8fafd; border:1px solid var(--line); border-radius:6px; padding:8px 10px; margin-bottom:12px; }
+.toolbar .lab { font-size:12px; color:var(--gray); }
+.toolbar input[type=search] { width:170px; }
+.toolbar select { padding:4px 6px; max-width:150px; }
+.unit-in { width:88px; }
+/* SECTION: tag-badge */
+.badge { display:inline-block; font-size:12px; padding:2px 10px; border-radius:10px; white-space:nowrap; }
+.b-idle { background:#eceff3; color:#5b6470; }
+.b-doing { background:#e2ecfb; color:var(--blue); }
+.b-done { background:#dff3e8; color:var(--green); }
+.b-late { background:#fde8e6; color:var(--red); }
+.b-hold { background:#fdf1e3; color:var(--amber); }
+.b-piece { background:#e6f4ff; color:#0b5cad; }
+.b-day { background:#f3ecff; color:#6b35c4; }
+.tabbar { display:flex; gap:6px; flex-wrap:wrap; }
+.tabbar button { border-radius:16px; padding:5px 14px; }
+.tabbar button.on { background:var(--blue); border-color:var(--blue); color:#fff; }
+.chips { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+.chip { background:#e8edf5; color:var(--blue); font-size:12px; padding:4px 12px; border-radius:10px; cursor:pointer; border:1px solid transparent; }
+.chip.on { background:var(--blue-d); color:#fff; }
+.chip:hover { border-color:var(--blue); }
+/* SECTION: stat-cards */
+.stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; margin-bottom:12px; }
+.stat { background:#fff; border:1px solid var(--line); border-left:3px solid var(--blue); border-radius:6px; padding:9px 12px; }
+.stat .k { font-size:12px; color:var(--gray); }
+.stat .v { font-size:20px; font-weight:700; line-height:1.35; }
+.stat .s { font-size:11px; color:var(--gray); }
+.stat.g { border-left-color:var(--green); } .stat.a { border-left-color:var(--amber); }
+.stat.r { border-left-color:var(--red); } .stat.c { border-left-color:var(--cyan); }
+.stat.p { border-left-color:#6b35c4; }
+/* SECTION: table-css */
+.tw { overflow-x:auto; }
+table.grid { border-collapse:collapse; width:100%; font-size:13px; }
+table.grid th { background:#f3f5f9; text-align:left; padding:8px 10px; border:1px solid var(--line); white-space:nowrap; font-weight:600; }
+table.grid td { padding:7px 10px; border:1px solid var(--line); vertical-align:middle; }
+table.grid tr:hover td { background:#f8fafd; }
+td.num,th.num { text-align:right; white-space:nowrap; }
+tr.sumrow td { background:#f3f5f9; font-weight:700; }
+.bar { background:#e6eaf1; border-radius:6px; height:9px; overflow:hidden; min-width:80px; }
+.bar i { display:block; height:100%; background:var(--blue); border-radius:6px; transition:width .3s; }
+.bar i.g { background:var(--green); } .bar i.r { background:var(--red); } .bar i.a { background:var(--amber); }
+.barwrap { display:flex; align-items:center; gap:7px; min-width:130px; }
+.barwrap .pct { font-size:12px; font-weight:700; min-width:40px; text-align:right; color:var(--gray); }
+.who { display:flex; align-items:center; gap:8px; }
+.avt { width:30px; height:30px; border-radius:50%; background:var(--blue); color:#fff; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:600; flex:none; }
+.avt.g { background:var(--green); } .avt.p { background:#6b35c4; } .avt.x { background:#8a94a8; }
+.empty { text-align:center; color:var(--gray); padding:26px 10px; font-size:13px; }
+a.link { color:var(--blue); text-decoration:none; }
+.note { background:#f6f7fa; border:1px dashed var(--line); border-radius:6px; padding:8px 12px; font-size:12px; color:var(--gray); margin-bottom:12px; line-height:1.7; }
+/* SECTION: cards-grid */
+.kwrap { display:grid; grid-template-columns:repeat(auto-fill,minmax(330px,1fr)); gap:12px; }
+.ocard { border:1px solid var(--line); border-radius:6px; background:#fff; padding:11px 13px; display:flex; flex-direction:column; gap:8px; }
+.ocard.done { background:#fbfdfc; border-color:#c9e6d7; }
+.ocard.late { background:#fffbfb; border-color:#f3cfcb; }
+.ocard h3 { margin:0; font-size:15px; display:flex; justify-content:space-between; gap:8px; align-items:center; flex-wrap:wrap; }
+.ocard h3 .no { font-family:ui-monospace,Consolas,monospace; font-size:14px; }
+.ometa { display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap; color:var(--gray); font-size:12px; }
+.oline { display:flex; align-items:center; gap:8px; font-size:12px; }
+.oline .pn { width:64px; flex:none; color:var(--gray); }
+.oline .bar { flex:1; }
+.ogrid { display:grid; grid-template-columns:repeat(2,1fr); gap:4px 10px; font-size:12px; }
+.ogrid span { color:var(--gray); }
+.foot { display:flex; gap:6px; flex-wrap:wrap; border-top:1px dashed var(--line); padding-top:8px; }
+/* SECTION: modal-css */
+.ovl { position:fixed; inset:0; background:rgba(15,23,42,.55); z-index:60; display:flex; align-items:center; justify-content:center; padding:14px; }
+.ovl .box { background:#fff; border-radius:8px; width:100%; max-width:960px; max-height:90vh; display:flex; flex-direction:column; box-shadow:0 12px 40px rgba(0,0,0,.3); }
+.ovl .box.sm { max-width:520px; } .ovl .box.md { max-width:720px; }
+.ovl .box > h3 { margin:0; padding:11px 16px; border-bottom:1px solid var(--line); font-size:15px; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; }
+.ovl .obox { padding:12px 16px; overflow:auto; }
+.ovl .fbot { padding:10px 16px; border-top:1px solid var(--line); display:flex; gap:8px; justify-content:flex-end; align-items:center; flex-wrap:wrap; }
+.pick-list { max-height:300px; overflow:auto; border:1px solid var(--line); border-radius:5px; }
+.pick-item { display:flex; align-items:center; gap:9px; padding:7px 10px; border-bottom:1px solid #eef1f5; }
+.pick-item:last-child { border-bottom:none; }
+.pick-item:hover { background:#f8fafd; }
+.pick-item .nm { font-weight:600; min-width:76px; }
+.pick-item input[type=number] { width:78px; text-align:right; padding:3px 6px; }
+.pick-item .mini-lab { font-size:12px; color:var(--gray); }
+.err { color:var(--red); font-size:12px; } .warn { color:var(--amber); font-size:12px; }
+.tabs2 { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px; }
+.tabs2 button { border-radius:16px; padding:4px 12px; font-size:13px; }
+.tabs2 button.on { background:var(--blue); border-color:var(--blue); color:#fff; }
+.toast { position:fixed; left:50%; bottom:26px; transform:translateX(-50%); background:var(--blue-d); color:#fff; padding:9px 20px; border-radius:20px; font-size:13px; opacity:0; transition:.3s; pointer-events:none; z-index:90; }
+.toast.show { opacity:.96; }
+/* SECTION: charts */
+.chart-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(330px,1fr)); gap:12px; }
+.chart-box { background:#fff; border:1px solid var(--line); border-radius:6px; padding:11px 13px; }
+.chart-box h4 { margin:0 0 8px; font-size:14px; display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
+.chart-box h4 small { font-weight:400; color:var(--gray); font-size:12px; }
+.legend { display:flex; gap:12px; flex-wrap:wrap; font-size:12px; color:var(--gray); margin-top:6px; }
+.legend i { display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:4px; }
+svg.ch { display:block; width:100%; height:auto; overflow:visible; }
+@media (max-width:820px){
+  table.grid,table.grid thead,table.grid tbody,table.grid tr,table.grid th,table.grid td { display:block; }
+  table.grid thead { display:none; }
+  table.grid tr { border:1px solid var(--line); margin-bottom:8px; border-radius:5px; overflow:hidden; }
+  table.grid td { border:none; border-bottom:1px dashed var(--line); display:flex; justify-content:space-between; gap:12px; }
+  table.grid td:before { content:attr(data-label); color:var(--gray); font-size:12px; flex:none; }
+  table.grid td:last-child { border-bottom:none; }
+  .ogrid { grid-template-columns:1fr 1fr; }
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">车间通讯录 · 排产</div>
+  <button class="navbtn" data-nav="roster">① 车间通讯录</button>
+  <button class="navbtn" data-nav="order">② 工单排产</button>
+  <button class="navbtn" data-nav="stats">③ 效率与工资</button>
+  <button class="navbtn" data-nav="data">④ 数据</button>
+  <div class="spacer"></div>
+  <button class="ghost" id="btn-quick-report">快速报工</button>
+</header>
+<main>
+  <div id="view-roster" class="view on"></div>
+  <div id="view-order" class="view"></div>
+  <div id="view-stats" class="view"></div>
+  <div id="view-data" class="view"></div>
+</main>
+<div id="modal-root"></div>
+<div class="toast" id="toast"></div>
+<script src="vendor/xlsx.full.min.js"></script>
+<script>
+/* ==================== 基础：状态 / 工具 ==================== */
+var LS = 'ws_roster_dispatch_v5';
+var LS_PREV = LS + '_prev';
+var SNAP = LS + '_snap_';
+var S = null;
+
+function uid(p){ return (p||'id') + Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+function $(sel,root){ return (root||document).querySelector(sel); }
+function $$(sel,root){ return Array.prototype.slice.call((root||document).querySelectorAll(sel)); }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+function n2(v){ var n=Number(v)||0; return (Math.round(n*100)/100).toString(); }
+function n0(v){ return (Math.round(Number(v)||0)).toLocaleString('zh-CN'); }
+function num(v,d){ var n=Number(v); return isFinite(n)?n:(d===undefined?0:d); }
+function today(){ var d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function dayDiff(a,b){ // b - a，天
+  var da=new Date(a+'T00:00:00'), db=new Date(b+'T00:00:00');
+  return Math.round((db-da)/86400000);
+}
+function dateRange(days){ // 最近 N 天日期数组
+  var arr=[]; var base=new Date();
+  for(var i=days-1;i>=0;i--){ var d=new Date(base.getTime()-i*86400000); arr.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')); }
+  return arr;
+}
+function toast(msg){
+  var t=$('#toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(t._tm); t._tm=setTimeout(function(){ t.classList.remove('show'); },2000);
+}
+function empName(id){ var e=findEmp(id); return e?e.name:'（已删除）'; }
+function findEmp(id){ return S.employees.filter(function(e){ return e.id===id; })[0]||null; }
+function findOrder(id){ return S.orders.filter(function(o){ return o.id===id; })[0]||null; }
+function findAssign(id){ return S.assigns.filter(function(a){ return a.id===id; })[0]||null; }
+function wsName(id){ var w=S.workshops.filter(function(x){ return x.id===id; })[0]; return w?w.name:'未分配'; }
+function grpName(id){ var g=S.groups.filter(function(x){ return x.id===id; })[0]; return g?g.name:'—'; }
+function empFull(e){ return wsName(e.wid)+' / '+grpName(e.gid); }
+function orderLevel(o){ // 工单紧急度
+  if(o.status==='done') return 'ok';
+  var left=dayDiff(today(), o.due||today());
+  if(left<0) return 'late'; if(left<=2) return 'near'; return 'ok';
+}
+
+/* ==================== 存取 ==================== */
+function blank(){
+  return { workshops:[], groups:[], employees:[], orders:[], assigns:[], reports:[], misc:[],
+    settings:{ stdHours:8, otRate:1.5, miscRate:20 }, meta:{ created:today() } };
+}
+function parse(json){
+  if(!json) return null;
+  try{ var o=JSON.parse(json); if(!o||typeof o!=='object') return null; return o; }catch(e){ return null; }
+}
+function normalize(o){
+  var b=blank();
+  ['workshops','groups','employees','orders','assigns','reports'].forEach(function(k){ if(!Array.isArray(o[k])) o[k]=b[k]; });
+  if(!Array.isArray(o.misc)) o.misc=[];
+  o.settings=Object.assign({}, b.settings, o.settings||{});
+  o.meta=Object.assign({}, b.meta, o.meta||{});
+  migrateV5(o);
+  return o;
+}
+// v4 → v5 迁移：班组类型 / 默认日工组 / 成品编号 / 完成日期 / 杂工时薪 / 杂工表
+function migrateV5(o){
+  o.groups.forEach(function(g){ if(g.type!=='piece'&&g.type!=='day') g.type='piece'; });
+  o.orders.forEach(function(x){
+    if(x.productCode===undefined) x.productCode='';
+    if(x.doneOn===undefined) x.doneOn='';
+    // 修正历史版本误存的单字母归属（w/g/e → workshop/group/person）
+    if(x.belongType==='w') x.belongType='workshop';
+    else if(x.belongType==='g') x.belongType='group';
+    else if(x.belongType==='e') x.belongType='person';
+  });
+  o.workshops.forEach(function(w){
+    var looseDay=o.employees.some(function(e){ return e.wid===w.id && e.type==='day' && !e.gid; });
+    if(!looseDay) return;
+    if(o.groups.some(function(g){ return g.wid===w.id && g.type==='day'; })) return;
+    var ng={ id:uid('g'), wid:w.id, name:'日工组', type:'day' };
+    o.groups.push(ng);
+    o.employees.forEach(function(e){ if(e.wid===w.id && e.type==='day' && !e.gid) e.gid=ng.id; });
+  });
+}
+function save(snapshot){
+  try{
+    if(snapshot){
+      var old=localStorage.getItem(LS);
+      if(old){ localStorage.setItem(LS_PREV, old); localStorage.setItem(SNAP+today(), old); trimSnap(); }
+    }
+    localStorage.setItem(LS, JSON.stringify(S));
+  }catch(e){ alert('保存失败：' + e.message); }
+}
+function trimSnap(){
+  try{
+    var keys=Object.keys(localStorage).filter(function(k){ return k.indexOf(SNAP)===0; }).sort();
+    while(keys.length>7){ localStorage.removeItem(keys.shift()); }
+  }catch(e){}
+}
+function load(){
+  var t=parse(localStorage.getItem(LS));
+  if(!t){
+    var keys=[]; try{ keys=Object.keys(localStorage); }catch(e){}
+    var snaps=keys.filter(function(k){ return k.indexOf(SNAP)===0; }).sort();
+    for(var i=snaps.length-1;i>=0;i--){ t=parse(localStorage.getItem(snaps[i])); if(t) break; }
+  }
+  if(!t) t=parse(localStorage.getItem(LS_PREV));
+  return normalize(t||blank());
+}
+function snapList(){
+  var keys=[]; try{ keys=Object.keys(localStorage); }catch(e){}
+  return keys.filter(function(k){ return k.indexOf(SNAP)===0; }).sort().reverse()
+    .map(function(k){ return { key:k, date:k.slice(SNAP.length), ok: !!parse(localStorage.getItem(k)) }; });
+}
+
+/* ==================== 计算核心 ==================== */
+// 单条报工记录的工资（行级参考；日工应发以「日工结算」按天聚合为准）
+function repWage(rep, emp, rate){
+  var st=S.settings;
+  var good=num(rep.qty)-num(rep.defect);
+  if(emp.type==='piece'){
+    if(num(rate)>0) return good*num(rate);              // 计件工干计件
+    return num(rep.hours)*num(st.miscRate);             // 计件工干日工：杂工统一时薪
+  }
+  if(num(rate)>0) return good*num(rate);                // 日工借调计件：合格件 × 工单单价
+  var h=num(rep.hours), std=num(st.stdHours)||8;        // 日工干日工
+  return num(emp.dayRate)/std*(Math.min(h,std)+Math.max(0,h-std)*num(st.otRate));
+}
+function inPeriod(d, since, until){ return (!since||d>=since)&&(!until||d<=until); }
+// 某人某次派工汇总
+function assignStat(a){
+  var emp=findEmp(a.eid); var st=S.settings;
+  var reps=S.reports.filter(function(r){ return r.aid===a.id; });
+  var done=0, defect=0, hours=0, eff=0, wage=0;
+  reps.forEach(function(r){ done+=num(r.qty); defect+=num(r.defect); hours+=num(r.hours); eff+=num(r.eff); wage+=repWage(r, emp||{type:'piece'}, num(a.rate)); });
+  var good=done-defect;
+  return { reps:reps, done:done, defect:defect, good:good, hours:hours, eff:eff, wage:wage,
+    planNum:num(a.planQty), reach:a.planQty>0? good/num(a.planQty) : (good>0?1:0),
+    yieldRate: done>0? good/done : 1,
+    effPH: eff>0? good/eff : 0,
+    unitCost: good>0? wage/good : 0,
+    useRate: hours>0? eff/hours : 0 };
+}
+// 工单汇总
+function orderStat(o){
+  var as=S.assigns.filter(function(a){ return a.oid===o.id; });
+  var good=0, done=0, defect=0, hours=0, eff=0, wagePiece=0, wageDay=0, people={};
+  as.forEach(function(a){
+    var s=assignStat(a); var emp=findEmp(a.eid);
+    good+=s.good; done+=s.done; defect+=s.defect; hours+=s.hours; eff+=s.eff;
+    if(num(o.pieceRate)>0) wagePiece+=s.wage; else wageDay+=s.wage;
+    if(s.done>0) people[a.eid]=1;
+  });
+  var plan=num(o.planQty);
+  return { assigns:as, good:good, done:done, defect:defect, hours:hours, eff:eff,
+    wage:wagePiece+wageDay, wagePiece:wagePiece, wageDay:wageDay,
+    heads:as.length, activeHeads:Object.keys(people).length,
+    reach: plan>0? good/plan : 0,
+    unitCost: good>0? (wagePiece+wageDay)/good : 0 };
+}
+// 某人的全部派工汇总
+function empStat(e, since, until, oid){
+  var as=S.assigns.filter(function(a){ return a.eid===e.id && (!oid||a.oid===oid); });
+  var good=0, done=0, defect=0, hours=0, eff=0, wage=0, orders={};
+  as.forEach(function(a){
+    var reps=S.reports.filter(function(r){ return r.aid===a.id; });
+    if(since) reps=reps.filter(function(r){ return r.date>=since; });
+    if(until) reps=reps.filter(function(r){ return r.date<=until; });
+    var emp=e; var s={good:0,done:0,defect:0,hours:0,eff:0,wage:0};
+    reps.forEach(function(r){ s.done+=num(r.qty); s.defect+=num(r.defect); s.hours+=num(r.hours); s.eff+=num(r.eff); s.wage+=repWage(r,emp,num(a.rate)); });
+    s.good=s.done-s.defect;
+    good+=s.good; done+=s.done; defect+=s.defect; hours+=s.hours; eff+=s.eff; wage+=s.wage;
+    if(s.done>0) orders[a.oid]=1;
+  });
+  return { heads:1, good:good, done:done, defect:defect, hours:hours, eff:eff, wage:wage,
+    orderCount:Object.keys(orders).length,
+    effPH: eff>0? good/eff : 0,
+    unitCost: good>0? wage/good : 0,
+    useRate: hours>0? eff/hours : 0,
+    yieldRate: done>0? good/done : 1 };
+}
+
+/* ---------- 结算聚合 ---------- */
+// 日工按天结算：同一天全部工时合并后，扣减借调工时，再拆标准/加班
+function daySettleRows(since, until){
+  var map={};
+  S.assigns.forEach(function(a){
+    var emp=findEmp(a.eid); if(!emp||emp.type!=='day') return;
+    var o=findOrder(a.oid);
+    S.reports.forEach(function(r){
+      if(r.aid!==a.id||!inPeriod(r.date,since,until)) return;
+      var k=emp.id+'|'+r.date;
+      if(!map[k]) map[k]={ e:emp, date:r.date, totalH:0, loanH:0, loanWage:0 };
+      var h=num(r.hours);
+      map[k].totalH+=h;
+      if(o&&num(o.pieceRate)>0){ map[k].loanH+=h; map[k].loanWage+=(num(r.qty)-num(r.defect))*num(a.rate); }
+    });
+  });
+  var std=num(S.settings.stdHours)||8;
+  return Object.keys(map).map(function(k){
+    var m=map[k], charge=Math.max(0,m.totalH-m.loanH);
+    m.chargeH=charge; m.ot=Math.max(0,charge-std);
+    m.wage=num(m.e.dayRate)/std*(Math.min(charge,std)+m.ot*num(S.settings.otRate));
+    return m;
+  }).sort(function(a,b){ return (a.e.code+a.date).localeCompare(b.e.code+b.date); });
+}
+// 计件班组结算（订单归属口径）：订单挂在哪个计件组，全部参与人员（本组/其他组计件工/日工）
+// 的计件工资一律计入订单所在组，不随人员归属走；非本组人员部分单列「借调费(参考)」。
+// 组实发 = 组计件工资 + 杂工费（组内计件工在日工工单上的工时费 + 杂工登记）。
+function groupSettleRows(since, until){
+  var map={};
+  S.groups.filter(function(g){ return g.type==='piece'; }).forEach(function(g){
+    map[g.id]={ g:g, pieceWage:0, loanWage:0, miscFee:0 };
+  });
+  // 1) 计件工单：按订单归属组计入
+  S.assigns.forEach(function(a){
+    var o=findOrder(a.oid), emp=findEmp(a.eid);
+    if(!o||num(o.pieceRate)<=0||o.belongType!=='group') return;
+    var m=map[o.belongId]; if(!m) return;
+    S.reports.forEach(function(r){
+      if(r.aid!==a.id||!inPeriod(r.date,since,until)) return;
+      var w=(num(r.qty)-num(r.defect))*num(a.rate);
+      m.pieceWage+=w;
+      if(!emp||emp.gid!==m.g.id) m.loanWage+=w; // 非本组人员：其他组计件工或日工
+    });
+  });
+  // 2) 杂工费：组内计件工在日工工单（pieceRate=0）上的报工 + 杂工登记
+  S.groups.filter(function(g){ return g.type==='piece'; }).forEach(function(g){
+    var m=map[g.id];
+    S.employees.filter(function(emp){ return emp.gid===g.id; }).forEach(function(emp){
+      S.assigns.filter(function(a){ return a.eid===emp.id; }).forEach(function(a){
+        var o=findOrder(a.oid);
+        if(o&&num(o.pieceRate)>0) return; // 计件订单（含借调其他组）按订单归属走，不算杂工
+        S.reports.forEach(function(r){
+          if(r.aid===a.id&&inPeriod(r.date,since,until))
+            m.miscFee+=num(r.hours)*num(S.settings.miscRate);
+        });
+      });
+      S.misc.forEach(function(mc){
+        if(mc.eid===emp.id&&inPeriod(mc.date,since,until))
+          m.miscFee+=num(mc.hours)*num(S.settings.miscRate);
+      });
+    });
+  });
+  return Object.keys(map).map(function(k){
+    var m=map[k]; m.total=m.pieceWage+m.miscFee; return m;
+  });
+}
+// 日工按人周期累计（用于「计件班组/日工结算」总览表中的日工行）
+function dayEmpSums(since, until){
+  var map={};
+  daySettleRows(since,until).forEach(function(m){
+    if(!map[m.e.id]) map[m.e.id]={ e:m.e, wage:0, loanWage:0 };
+    map[m.e.id].wage+=m.wage;
+    map[m.e.id].loanWage+=m.loanWage;
+  });
+  return Object.keys(map).map(function(k){ return map[k]; });
+}
+// 工资统计报表：一行一个已完工计件工单
+function wageBillRows(since, until){
+  return S.orders.filter(function(o){ return o.status==='done'&&num(o.pieceRate)>0&&inPeriod(o.doneOn,since,until); })
+    .map(function(o){
+      var s=orderStat(o);
+      return { doneOn:o.doneOn||'', o:o, good:s.good, rate:num(o.pieceRate), wage:s.good*num(o.pieceRate) };
+    }).sort(function(a,b){ return (a.doneOn+a.o.no).localeCompare(b.doneOn+b.o.no); });
+}
+
+/* ==================== 示例数据 ==================== */
+function seed(){
+  var b=blank();
+  var w1=uid('w'), w2=uid('w');
+  b.workshops=[{id:w1,name:'一车间'},{id:w2,name:'二车间'}];
+  var g02=uid('g'),g06=uid('g'),g08=uid('g'),g09=uid('g');
+  var g03=uid('g'),g04=uid('g'),g05=uid('g'),g07=uid('g'),g11=uid('g');
+  var dg1=uid('g'), dg2=uid('g'); // 默认日工组
+  b.groups=[
+    {id:g02,wid:w1,name:'02组',type:'piece'},{id:g06,wid:w1,name:'06组',type:'piece'},
+    {id:g08,wid:w1,name:'08组',type:'piece'},{id:g09,wid:w1,name:'09组',type:'piece'},
+    {id:dg1,wid:w1,name:'日工组',type:'day'},
+    {id:g03,wid:w2,name:'03组',type:'piece'},{id:g04,wid:w2,name:'04组',type:'piece'},
+    {id:g05,wid:w2,name:'05组',type:'piece'},{id:g07,wid:w2,name:'07组',type:'piece'},
+    {id:g11,wid:w2,name:'11组',type:'piece'},{id:dg2,wid:w2,name:'日工组',type:'day'}
+  ];
+  // 计件工不在人员档案存单价，计价标准一律取自工单（派工带入）；日工保留日薪
+  function E(code,name,type,wid,gid,dayRate){
+    return { id:uid('e'), code:code, name:name, post:'', type:type, rate:0,
+      dayRate:type==='day'?(dayRate||160):0, phone:'', wid:wid, gid:gid||'',
+      status:'在岗', joinDate:'2025-03-01', note:'' };
+  }
+  b.employees=[
+    /* ===== 一车间（17人） ===== */
+    E('A001','房辉','piece',w1,g02), E('A002','王殿红','piece',w1,g02),
+    E('A003','王殿珍','piece',w1,g02), E('A004','王胜青','piece',w1,g02),
+    E('A005','赵双荣','piece',w1,g06), E('A006','崔俊香','piece',w1,g06), E('A007','郑春梅','piece',w1,g06),
+    E('A008','刘海英','piece',w1,g08), E('A009','李秀华','piece',w1,g08), E('A010','崔红霞','piece',w1,g08),
+    E('A011','周建兰','piece',w1,g09),
+    E('A012','房连荣','day',w1,dg1,170), E('A013','王洪芹','day',w1,dg1,160),
+    E('A014','袁明芝','day',w1,dg1,160), E('A015','路兴国','day',w1,dg1,180),
+    E('A016','苏少平','day',w1,dg1,170), E('A017','贾俊红','day',w1,dg1,160),
+    /* ===== 二车间（20人） ===== */
+    E('B001','王荣香','piece',w2,g03), E('B002','张丽英','piece',w2,g03),
+    E('B003','范东英','piece',w2,g04),
+    E('B004','赵建霞','piece',w2,g05), E('B005','崔菊香','piece',w2,g05), E('B006','许新红','piece',w2,g05),
+    E('B007','罗秀梅','piece',w2,g07), E('B008','刘秀艳','piece',w2,g07),
+    E('B009','房永霞','piece',w2,g07), E('B010','范泽红','piece',w2,g07),
+    E('B011','杨小翠','piece',w2,g11), E('B012','王庆玲','piece',w2,g11), E('B013','王殿英','piece',w2,g11),
+    E('B014','王长全','day',w2,dg2,180), E('B015','王海滨','day',w2,dg2,170),
+    E('B016','王春英','day',w2,dg2,160), E('B017','盖书英','day',w2,dg2,160),
+    E('B018','刘翠花','day',w2,dg2,150), E('B019','郑宝香','day',w2,dg2,160), E('B020','申桂枝','day',w2,dg2,150)
+  ];
+  // orders / assigns / reports 故意留空：用户要求清除默认工单数据，仅保留真实人员名单。
+  // blank() 已将上述三个数组初始化为 []，此处不再灌示例工单。
+  return b;
+}
+/* ==================== UI 状态 / 框架 ==================== */
+var UI = { nav:'roster', wid:'', gid:'', type:'', status:'', q:'', sort:'default',
+  owid:'', ostatus:'', oq:'', openOid:'', openWid:'', openGid:'',
+  since:'', until:'', swid:'', sgid:'', stype:'', soid:'', statTab:'group',
+  showArchived:false, _pkq:'' };
+
+function go(nav){
+  UI.nav=nav;
+  $$('.navbtn').forEach(function(b){ b.classList.toggle('on', b.getAttribute('data-nav')===nav); });
+  $$('.view').forEach(function(v){ v.classList.toggle('on', v.id==='view-'+nav); });
+  render();
+  window.scrollTo(0,0);
+}
+function render(){
+  try{
+    if(UI.nav==='roster') renderRoster();
+    else if(UI.nav==='order') renderOrder();
+    else if(UI.nav==='stats') renderStats();
+    else renderData();
+  }catch(e){ console.error(e); toast('渲染出错：'+e.message); }
+}
+
+/* ==================== 弹窗 ==================== */
+function openModal(title, bodyHtml, footHtml, opt){
+  opt=opt||{};
+  var size = opt.size ? ' ' + opt.size : '';
+  $('#modal-root').innerHTML =
+    `<div class="ovl"><div class="box${size}">
+      <h3><span>${title}</span><button class="mini-btn" data-act="modal-close">关闭 ✕</button></h3>
+      <div class="obox">${bodyHtml}</div>
+      ${footHtml? `<div class="fbot">${footHtml}</div>`:''}
+    </div></div>`;
+}
+function closeModal(){ $('#modal-root').innerHTML=''; }
+$('#modal-root').addEventListener('click', function(ev){
+  if(ev.target.classList.contains('ovl')) closeModal();
+});
+function confirmBox(msg, onYes){
+  openModal('确认', `<div class="pad">${msg}</div>`,
+    `<button data-act="modal-close">取消</button><button class="pri danger" id="cf-yes">确定</button>`, {size:'sm'});
+  setTimeout(function(){ var b=$('#cf-yes'); if(b) b.addEventListener('click', function(){ closeModal(); onYes(); }); },0);
+}
+function fld(label, inner){ return `<div class="fld"><label>${label}</label>${inner}</div>`; }
+
+/* ==================== 屏① 车间通讯录 ==================== */
+function filteredEmps(){
+  return S.employees.filter(function(e){
+    if(UI.wid && e.wid!==UI.wid) return false;
+    if(UI.gid && e.gid!==UI.gid) return false;
+    if(UI.type && e.type!==UI.type) return false;
+    if(UI.status && e.status!==UI.status) return false;
+    if(UI.q){
+      var q=UI.q.toLowerCase();
+      if((e.name+e.code+(e.post||'')+(e.phone||'')).toLowerCase().indexOf(q)<0) return false;
+    }
+    return true;
+  }).sort(function(a,b){
+    if(UI.sort==='name') return a.name.localeCompare(b.name,'zh');
+    if(UI.sort==='code') return a.code.localeCompare(b.code);
+    return (empFull(a)).localeCompare(empFull(b),'zh') || a.code.localeCompare(b.code);
+  });
+}
+function activeOrdersOf(eid){
+  return S.assigns.filter(function(a){ return a.eid===eid; })
+    .map(function(a){ return findOrder(a.oid); }).filter(function(o){ return o && o.status==='doing'; });
+}
+function renderRoster(){
+  var emps=filteredEmps();
+  var all=S.employees;
+  var piece=all.filter(function(e){ return e.type==='piece'; }).length;
+  var busy=all.filter(function(e){ return activeOrdersOf(e.id).length>0; }).length;
+  var groups=S.groups.filter(function(g){ return !UI.wid || g.wid===UI.wid; });
+
+  var blocks=buildRosterBlocks(emps);
+  var html=[];
+  html.push(`<div class="stats">
+    <div class="stat"><div class="k">在册人数</div><div class="v">${all.length}</div><div class="s">在岗 ${all.filter(function(e){return e.status==='在岗';}).length} 人</div></div>
+    <div class="stat p"><div class="k">计件工</div><div class="v">${piece}</div><div class="s">按合格件计价</div></div>
+    <div class="stat c"><div class="k">日工</div><div class="v">${all.length-piece}</div><div class="s">按出勤工时计价</div></div>
+    <div class="stat g"><div class="k">在生产线上</div><div class="v">${busy}</div><div class="s">已有进行中工单</div></div>
+    <div class="stat r"><div class="k">闲置待派</div><div class="v">${all.length-busy}</div><div class="s">未被派入生产工单</div></div>
+  </div>`);
+
+  html.push(`<div class="card"><h2><span>车间与分组</span>
+    <span><span class="sub">当前显示 ${emps.length} 人　</span><button class="mini-btn" data-act="mg-org">⚙ 管理车间 / 分组</button></span></h2>
+   <div class="pad">
+    <div class="tabbar" style="margin-bottom:8px">
+      <button class="${UI.wid?'':'on'}" data-act="rw" data-v="">全部车间 (${all.length})</button>
+      ${S.workshops.map(function(w){
+        var c=S.employees.filter(function(e){ return e.wid===w.id; }).length;
+        return `<button class="${UI.wid===w.id?'on':''}" data-act="rw" data-v="${w.id}">${esc(w.name)} (${c})</button>`;
+      }).join('')}
+    </div>
+    <div class="chips">
+      <span class="chip ${UI.gid?'':'on'}" data-act="rg" data-v="">全部分组</span>
+      ${groups.map(function(g){
+        var c=S.employees.filter(function(e){ return e.gid===g.id; }).length;
+        return `<span class="chip ${UI.gid===g.id?'on':''}" data-act="rg" data-v="${g.id}">${esc(g.name)} (${c})</span>`;
+      }).join('')}
+    </div>
+   </div></div>`);
+
+  html.push(`<div class="card"><h2><span>人员通讯录</span>
+    <button class="pri" data-act="emp-new">＋ 新增人员</button></h2>
+   <div class="pad">
+    <div class="toolbar">
+      <input type="search" placeholder="搜索姓名 / 工号 / 岗位" value="${esc(UI.q)}" data-f="q">
+      <span class="lab">用工</span>
+      <select data-f="type"><option value="">全部</option>
+        <option value="piece" ${UI.type==='piece'?'selected':''}>计件工</option>
+        <option value="day" ${UI.type==='day'?'selected':''}>日工</option></select>
+      <span class="lab">状态</span>
+      <select data-f="status"><option value="">全部</option>
+        ${['在岗','休假','离职'].map(function(s){ return `<option ${UI.status===s?'selected':''}>${s}</option>`; }).join('')}</select>
+      <span class="lab">排序</span>
+      <select data-f="sort">
+        <option value="default" ${UI.sort==='default'?'selected':''}>按车间分组</option>
+        <option value="name" ${UI.sort==='name'?'selected':''}>按姓名</option>
+        <option value="code" ${UI.sort==='code'?'selected':''}>按工号</option></select>
+      <button data-act="emp-batch">批量派工</button>
+    </div>
+    ${blocks.length? blocks.map(blockHTML).join('') : `<div class="empty">没有符合条件的人员，试试更换筛选或新增人员</div>`}
+   </div></div>`);
+  $('#view-roster').innerHTML=html.join('');
+}
+/* ---------- 分组块（按小组/个人展示） ---------- */
+function buildRosterBlocks(emps){
+  var grouped={};
+  emps.forEach(function(e){
+    var key=e.gid || ('__p_'+e.id);
+    if(!grouped[key]) grouped[key]={ gid:e.gid, members:[] };
+    grouped[key].members.push(e);
+  });
+  var keys=Object.keys(grouped);
+  keys.sort(function(a,b){
+    var ma=grouped[a], mb=grouped[b];
+    if(ma.gid && !mb.gid) return -1;
+    if(!ma.gid && mb.gid) return 1;
+    if(ma.gid && mb.gid){
+      var ga=findGroup(ma.gid), gb=findGroup(mb.gid);
+      return ((ga?wsName(ga.wid)+ga.name:'')).localeCompare((gb?wsName(gb.wid)+gb.name:''),'zh');
+    }
+    return ma.members[0].name.localeCompare(mb.members[0].name,'zh');
+  });
+  return keys.map(function(k){
+    var blk=grouped[k], m=blk.members, os={};
+    m.forEach(function(e){ activeOrdersOf(e.id).forEach(function(o){ os[o.id]=o; }); });
+    return { gid:blk.gid, members:m, orders:Object.keys(os).map(function(id){ return os[id]; }) };
+  });
+}
+function findGroup(id){ return S.groups.filter(function(g){ return g.id===id; })[0]||null; }
+function blockTitle(b){
+  if(b.gid){ var g=findGroup(b.gid); return { t:esc(g?g.name:'未分组'), sub:g?wsName(g.wid):'', cnt:b.members.length+' 人' }; }
+  var e=b.members[0]; return { t:esc(e.name)+'（'+esc(e.code||'')+'）', sub:empFull(e), cnt:'单独人员' };
+}
+function blockHTML(b){
+  var tt=blockTitle(b);
+  var ordHtml = b.orders.length? b.orders.slice(0,4).map(function(o){ return `<span class="badge b-doing">${esc(o.no)}</span>`; }).join(' ') + (b.orders.length>4?` <span class="muted">+${b.orders.length-4}</span>`:'') : '<span class="muted">闲置</span>';
+  return `<div class="card" style="margin-bottom:10px">
+    <h2><span>👥 ${tt.t} <span class="sub">${tt.cnt}${tt.sub?' · '+tt.sub:''}</span></span>
+      <span class="sub" style="display:flex;gap:5px;align-items:center;flex-wrap:wrap">在手工单：${ordHtml}</span></h2>
+    <div class="tw"><table class="grid"><thead><tr>
+      <th>姓名 / 工号</th><th>岗位</th><th>用工类型</th><th>联系电话</th><th class="num">当月产出</th><th>状态</th><th>操作</th>
+    </tr></thead><tbody>${b.members.map(empRow).join('')}</tbody></table></div>
+  </div>`;
+}
+function empRow(e){
+  var since=today().slice(0,7)+'-01';
+  var st=empStat(e, since, today());
+  var sub = e.type==='piece' ? '计件 · 按工单单价' : '日薪 ¥'+n2(e.dayRate)+'/天';
+  return `<tr>
+    <td data-label="姓名"><div class="who"><span class="avt ${e.type==='piece'?'':'p'}">${esc(e.name.slice(0,1))}</span>
+      <div><div style="font-weight:600">${esc(e.name)}</div><div class="muted">${esc(e.code||'—')}</div></div></div></td>
+    <td data-label="岗位">${esc(e.post||'—')}</td>
+    <td data-label="用工类型"><span class="badge ${e.type==='piece'?'b-piece':'b-day'}">${e.type==='piece'?'计件':'日工'}</span><div class="muted">${sub}</div></td>
+    <td data-label="电话">${esc(e.phone||'—')}</td>
+    <td data-label="当月产出" class="num">${e.type==='piece'? n0(st.good)+' 件' : n0(st.hours)+' 工时'}</td>
+    <td data-label="状态"><span class="badge ${e.status==='在岗'?'b-done':(e.status==='休假'?'b-hold':'b-idle')}" data-act="emp-status" data-v="${e.id}" title="点击切换：在岗 → 休假 → 离职" style="cursor:pointer">${esc(e.status||'在岗')}</span></td>
+    <td data-label="操作"><div class="rowflex" style="gap:5px">
+      <button class="mini-btn pri" data-act="emp-assign" data-v="${e.id}">派工</button>
+      <button class="mini-btn" data-act="emp-edit" data-v="${e.id}">编辑</button>
+      <button class="mini-btn danger" data-act="emp-del" data-v="${e.id}">删</button>
+    </div></td></tr>`;
+}
+
+/* ---------- 人员表单 ---------- */
+function empForm(e){
+  var isNew=!e;
+  e = e || { id:'', code:'', name:'', post:'', type:'piece', dayRate:'', phone:'',
+    wid:UI.wid||(S.workshops[0]&&S.workshops[0].id)||'', gid:UI.gid||'', status:'在岗', joinDate:today(), note:'' };
+  var gs=S.groups.filter(function(g){ return !e.wid||g.wid===e.wid; });
+  var body=`<div class="form-grid">
+    ${fld('工号 *', `<input type="text" id="f-code" value="${esc(e.code)}" placeholder="如 A001">`)}
+    ${fld('姓名 *', `<input type="text" id="f-name" value="${esc(e.name)}">`)}
+    ${fld('岗位', `<input type="text" id="f-post" value="${esc(e.post)}" placeholder="如 焊工">`)}
+    ${fld('联系电话', `<input type="tel" id="f-phone" value="${esc(e.phone)}">`)}
+    ${fld('所属车间 *', `<select id="f-wid">${S.workshops.map(function(w){ return `<option value="${w.id}" ${w.id===e.wid?'selected':''}>${esc(w.name)}</option>`; }).join('')}</select>`)}
+    ${fld('所属分组', `<select id="f-gid"><option value="">未分组</option>${S.groups.map(function(g){ return `<option value="${g.id}" data-w="${g.wid}" data-t="${g.type}" ${g.id===e.gid?'selected':''}>${esc(g.name)}</option>`; }).join('')}</select>`)}
+    ${fld('用工类型', `<select id="f-type"><option value="piece" ${e.type==='piece'?'selected':''}>计件工</option><option value="day" ${e.type==='day'?'selected':''}>日工</option></select>`)}
+    ${fld('日薪标准（元/天）', `<input type="number" step="1" id="f-day" value="${e.dayRate||''}" placeholder="260">`)}
+    ${fld('状态', `<select id="f-status">${['在岗','休假','离职'].map(function(s){ return `<option ${e.status===s?'selected':''}>${s}</option>`; }).join('')}</select>`)}
+    ${fld('入职日期', `<input type="date" id="f-join" value="${esc(e.joinDate||today())}">`)}
+  </div>
+  <div class="fld" style="margin-top:10px"><label>备注</label><input type="text" id="f-note" value="${esc(e.note)}" placeholder="技能等级、特殊说明等"></div>
+  <div class="note" style="margin-top:10px">计件工的工价不在此登记——工资按派入的<b>生产工单计件单价</b>计算（派工/录入报工时自动带入工单单价，可逐人调整）；日工填下方「日薪标准」，按出勤工时折算，超出 ${n2(S.settings.stdHours)} 小时部分按 ${n2(S.settings.otRate)} 倍计加班。</div>
+  <div class="err" id="f-err"></div>`;
+  openModal(isNew?'新增人员':'编辑人员 · '+e.name, body,
+    `<button data-act="modal-close">取消</button><button class="pri" data-act="emp-save" data-v="${e.id}">保存</button>`);
+  // 联动分组：同时按车间与用工类型过滤
+  function filterGid(){
+    var wid=$('#f-wid').value, type=$('#f-type').value;
+    $$('#f-gid option').forEach(function(op){
+      if(op.value==='') return;
+      op.hidden = !!(wid&&op.getAttribute('data-w')!==wid) || op.getAttribute('data-t')!==type;
+    });
+  }
+  $('#f-wid').addEventListener('change', function(){ $('#f-gid').value=''; filterGid(); });
+  $('#f-type').addEventListener('change', function(){ $('#f-gid').value=''; filterGid(); toggleRateFields(); });
+  toggleRateFields();
+  function toggleRateFields(){
+    var t=$('#f-type').value;
+    $('#f-day').closest('.fld').style.display = t==='day'?'':'none';
+  }
+}
+function saveEmp(id){
+  var code=$('#f-code').value.trim(), name=$('#f-name').value.trim();
+  if(!code||!name){ $('#f-err').textContent='工号与姓名必填'; return; }
+  var dup=S.employees.filter(function(x){ return x.code===code && x.id!==id; })[0];
+  if(dup){ $('#f-err').textContent='工号 '+code+' 已被「'+dup.name+'」使用'; return; }
+  var o={ code:code, name:name, post:$('#f-post').value.trim(), phone:$('#f-phone').value.trim(),
+    wid:$('#f-wid').value, gid:$('#f-gid').value, type:$('#f-type').value, rate:0,
+    dayRate:num($('#f-day').value),
+    status:$('#f-status').value, joinDate:$('#f-join').value, note:$('#f-note').value.trim() };
+  if(id){ var e=findEmp(id); Object.assign(e,o); }
+  else { o.id=uid('e'); S.employees.push(o); }
+  save(true); closeModal(); render(); toast(id?'已保存':'已新增 '+name);
+}
+/* ---------- 车间 / 分组管理 ---------- */
+function orgModal(){
+  var body=`<div class="note">车间是人员归属的一级单位，分组是二级。删除车间/分组后，其下人员会变为「未分配」，不会被删除。</div>
+   ${S.workshops.length? S.workshops.map(function(w){
+     var cnt=S.employees.filter(function(e){ return e.wid===w.id; }).length;
+     return `<div class="card" style="margin-bottom:8px">
+       <h2><span>${esc(w.name)}　<span class="sub">${cnt} 人</span></span>
+         <span><button class="mini-btn" data-act="grp-new" data-v="${w.id}">＋ 加分组</button>
+         <button class="mini-btn danger" data-act="ws-del" data-v="${w.id}">删除车间</button></span></h2>
+       <div class="pad">${S.groups.filter(function(g){ return g.wid===w.id; }).map(function(g){
+         var gc=S.employees.filter(function(e){ return e.gid===g.id; }).length;
+         return `<div class="dir-item"><span><span class="t">${esc(g.name)}</span> <span class="m">${g.type==='day'?'日工组':'计件组'} · ${gc} 人</span></span>
+           <span><button class="mini-btn danger" data-act="grp-del" data-v="${g.id}">删除</button></span></div>`;
+       }).join('') || '<div class="muted">暂无分组</div>'}</div></div>`;
+   }).join('') : '<div class="empty">还没有车间，先在下方新增</div>'}
+   <div class="card"><h2>新增</h2><div class="pad">
+     <div class="rowflex" style="margin-bottom:8px">
+       <input type="text" id="ws-name" placeholder="车间名称，如 四车间（喷涂）" style="flex:1;min-width:200px">
+       <button class="pri" data-act="ws-new">＋ 新增车间</button>
+     </div>
+     <div class="rowflex">
+       <select id="g-wid" style="min-width:150px">${S.workshops.map(function(w){ return `<option value="${w.id}">${esc(w.name)}</option>`; }).join('')}</select>
+       <select id="g-type" style="min-width:110px"><option value="piece">计件组</option><option value="day">日工组</option></select>
+       <input type="text" id="g-name" placeholder="分组名称，如 02组 / 包装日工组" style="flex:1;min-width:160px">
+       <button data-act="grp-add">＋ 新增分组</button>
+     </div>
+   </div></div>`;
+  openModal('管理车间与分组', body, `<button data-act="modal-close">完成</button>`);
+}
+/* ==================== 屏② 生产工单排产 ==================== */
+function filteredOrders(){
+  var base=S.orders.filter(function(o){ return UI.showArchived || !o.archived; });
+  return base.filter(function(o){
+    if(UI.owid && o.wid!==UI.owid) return false;
+    if(UI.ostatus==='late'){
+      if(o.status==='done'||!o.due||dayDiff(today(),o.due)>=0) return false;
+    } else if(UI.ostatus && o.status!==UI.ostatus) return false;
+    if(UI.oq){
+      var q=UI.oq.toLowerCase();
+      if((o.no+o.name+(o.spec||'')).toLowerCase().indexOf(q)<0) return false;
+    }
+    return true;
+  }).sort(function(a,b){
+    var rank={doing:0,pending:1,hold:2,done:3};
+    if(rank[a.status]!==rank[b.status]) return rank[a.status]-rank[b.status];
+    return (a.due||'9999').localeCompare(b.due||'9999');
+  });
+}
+var ST_NAME={pending:'待开工',doing:'进行中',done:'已完成',hold:'暂停'};
+var ST_CLS={pending:'b-idle',doing:'b-doing',done:'b-done',hold:'b-hold'};
+function renderOrder(){
+  var orders=filteredOrders();
+  var all=S.orders.filter(function(o){ return UI.showArchived || !o.archived; });
+  var doing=all.filter(function(o){ return o.status==='doing'; });
+  var late=all.filter(function(o){ return o.status!=='done' && !o.archived && dayDiff(today(),o.due||today())<0; });
+  var tot={good:0,wage:0,hours:0,plan:0};
+  all.forEach(function(o){ var s=orderStat(o); tot.good+=s.good; tot.wage+=s.wage; tot.hours+=s.hours; tot.plan+=num(o.planQty); });
+  var html=[];
+  var archivedCnt=all.filter(function(o){ return o.archived; }).length;
+  html.push(`<div class="stats">
+    <div class="stat"><div class="k">工单总数</div><div class="v">${all.length}</div><div class="s">进行中 ${doing.length} 单</div></div>
+    <div class="stat r"><div class="k">超期未完成</div><div class="v">${late.length}</div><div class="s">交期已过仍未完工</div></div>
+    <div class="stat g"><div class="k">累计合格产量</div><div class="v">${n0(tot.good)}</div><div class="s">计划 ${n0(tot.plan)}</div></div>
+    <div class="stat a"><div class="k">累计工时</div><div class="v">${n0(tot.hours)}</div><div class="s">出勤工时合计</div></div>
+    <div class="stat p"><div class="k">人工成本合计</div><div class="v">¥${n0(tot.wage)}</div><div class="s">计件 + 日工</div></div>
+    <div class="stat"><div class="k">已归档</div><div class="v">${archivedCnt}</div><div class="s">${UI.showArchived?'当前显示中':'默认隐藏'}</div></div>
+  </div>`);
+  html.push(`<div class="card"><h2><span>生产工单</span><span><button data-act="ord-import">📥 快速导入</button> <button class="pri" data-act="ord-new">＋ 新建工单</button></span></h2>
+   <div class="pad">
+    <div class="toolbar">
+      <input type="search" placeholder="搜索工单号 / 产品" value="${esc(UI.oq)}" data-f="oq">
+      <span class="lab">车间</span>
+      <select data-f="owid"><option value="">全部车间</option>
+        ${S.workshops.map(function(w){ return `<option value="${w.id}" ${UI.owid===w.id?'selected':''}>${esc(w.name)}</option>`; }).join('')}</select>
+      <span class="lab">状态</span>
+      <select data-f="ostatus"><option value="">全部</option>
+        ${Object.keys(ST_NAME).map(function(k){ return `<option value="${k}" ${UI.ostatus===k?'selected':''}>${ST_NAME[k]}</option>`; }).join('')}
+        <option value="late" ${UI.ostatus==='late'?'selected':''}>超期</option></select>
+      <label class="lab" style="display:flex;gap:4px;align-items:center;cursor:pointer"><input type="checkbox" data-act="toggle-arch" ${UI.showArchived?'checked':''}> 显示已归档</label>
+      <span class="push"></span>
+      <button class="mini-btn" data-act="archive-done">归档全部已完成</button>
+      <button data-act="ord-scan">🔍 输入工单号定位</button>
+    </div>
+    ${orders.length? `<div class="kwrap">${orders.map(orderCard).join('')}</div>` : `<div class="empty">暂无工单，点「新建工单」录入生产工单号开始排产</div>`}
+   </div></div>`);
+  var miscList=S.misc.slice().sort(function(a,b){ return b.date.localeCompare(a.date); });
+  html.push(`<div class="card"><h2><span>杂工登记</span><span class="sub">计件工做日工：× 统一时薪 ¥${n2(S.settings.miscRate)}/h，计入其所在计件组</span>
+      <button class="pri" data-act="misc-new">＋ 登记杂工</button></h2>
+    <div class="pad">${miscList.length? `<div class="tw"><table class="grid"><thead><tr>
+      <th>日期</th><th>员工</th><th>所在计件组</th><th class="num">工时</th><th class="num">费用</th><th>备注</th><th></th>
+    </tr></thead><tbody>${miscList.slice(0,50).map(function(m){
+      var e=findEmp(m.eid)||{name:'（已删除）',code:'',gid:''};
+      return `<tr><td data-label="日期">${esc(m.date)}</td>
+        <td data-label="员工">${esc(e.name)} <span class="muted">${esc(e.code)}</span></td>
+        <td data-label="班组">${esc(grpName(e.gid))}</td>
+        <td data-label="工时" class="num">${n2(m.hours)} h</td>
+        <td data-label="费用" class="num">¥${n2(num(m.hours)*num(S.settings.miscRate))}</td>
+        <td data-label="备注">${esc(m.note||'')}</td>
+        <td data-label=""><button class="mini-btn danger" data-act="misc-del" data-v="${m.id}">删</button></td></tr>`;
+    }).join('')}</tbody></table></div>` : `<div class="empty">暂无杂工登记。计件工临时做日工/杂活时在此登记。</div>`}</div>`);
+  $('#view-order').innerHTML=html.join('');
+}
+function orderCard(o){
+  var s=orderStat(o);
+  var lv=orderLevel(o);
+  var left=dayDiff(today(), o.due||today());
+  var dueTxt = o.due ? (o.status==='done'? `交期 ${o.due}` :
+      (left<0? `<span class="warn">超期 ${-left} 天</span>` : left===0? `<span class="warn">今天到期</span>` : `剩 ${left} 天（${o.due}）`)) : '未设交期';
+  var pct=Math.min(100, s.reach*100);
+  return `<div class="ocard ${o.status==='done'?'done':(lv==='late'?'late':'')}">
+    <h3><span class="no">${esc(o.no)}</span>
+      <span><span class="badge ${num(o.pieceRate)>0?'b-piece':'b-day'}">${num(o.pieceRate)>0?'计件':'日工'}</span>
+      <span class="badge ${ST_CLS[o.status]}">${ST_NAME[o.status]}</span></span></h3>
+    <div><div style="font-weight:600">${esc(o.name||'（未命名工单）')} <span class="muted">${esc(o.spec||'')}</span></div>
+      <div class="muted">成品编号：${esc(o.productCode||'—')}　·　施工对象：${esc(belongText(o))}</div></div>
+    <div class="oline"><span class="pn">完工进度</span><span class="bar"><i class="${s.reach>=1?'g':(lv==='late'?'r':'')}" style="width:${pct}%"></i></span><span class="pct">${Math.round(s.reach*100)}%</span></div>
+    <div class="ogrid">
+      <div><span>计划 / 完成</span> ${n0(o.planQty)} ${esc(o.unit||'件')} / <b>${n0(s.good)}</b></div>
+      <div><span>交期</span> ${dueTxt}</div>
+      <div><span>单价</span> ${num(o.pieceRate)>0? '¥'+n2(o.pieceRate)+' / '+esc(o.unit||'件') : '按工时计'}</div>
+      <div><span>良品率</span> ${Math.round(s.yieldRate*1000)/10}%</div>
+      <div><span>已派 / 有产出</span> ${s.heads} 人 / ${s.activeHeads} 人</div>
+      <div><span>累计工时</span> ${n0(s.hours)} h</div>
+      <div><span>人工成本</span> ¥${n0(s.wage)}</div>
+      <div><span>单件成本</span> ¥${n2(s.unitCost)}</div>
+    </div>
+    <div class="foot">
+      <button class="mini-btn pri" data-act="ord-assign" data-v="${o.id}">＋ 派工</button>
+      <button class="mini-btn ok" data-act="ord-report" data-v="${o.id}">日报工</button>
+      <button class="mini-btn" data-act="ord-detail" data-v="${o.id}">排产追踪</button>
+      <button class="mini-btn" data-act="ord-edit" data-v="${o.id}">编辑</button>
+      <button class="mini-btn" data-act="ord-status" data-v="${o.id}">改状态</button>
+      ${o.archived? `<button class="mini-btn" data-act="ord-unarchive" data-v="${o.id}">取消归档</button>`
+        : `<button class="mini-btn" data-act="ord-archive" data-v="${o.id}">归档</button>`}
+      <button class="mini-btn danger" data-act="ord-del" data-v="${o.id}">删除</button>
+    </div>
+  </div>`;
+}
+/* ---------- 工单表单 ---------- */
+function belongOptions(o){
+  return `<optgroup label="整车间（生产任务归属该车间，需手动派工）">
+    ${S.workshops.map(function(w){ return `<option value="w|${w.id}" ${(o.belongType||'workshop')==='workshop'&&o.wid===w.id?'selected':''}>${esc(w.name)}</option>`; }).join('')}
+  </optgroup>
+  <optgroup label="按班组（建单即自动派入整组）">
+    ${S.groups.map(function(g){ return `<option value="g|${g.id}" ${o.belongType==='group'&&o.belongId===g.id?'selected':''}>${esc(wsName(g.wid))} / ${esc(g.name)}（整组）</option>`; }).join('')}
+  </optgroup>
+  <optgroup label="按人员（建单即单人派工）">
+    ${S.employees.filter(function(e){ return e.status==='在岗'; }).map(function(e){ return `<option value="e|${e.id}" ${o.belongType==='person'&&o.belongId===e.id?'selected':''}>${esc(e.code)} ${esc(e.name)}（${esc(empFull(e))}）</option>`; }).join('')}
+  </optgroup>`;
+}
+function belongText(o){
+  var bt=o.belongType||'workshop';
+  if(bt==='group'){ var g=findGroup(o.belongId); return g? (wsName(g.wid)+' / '+g.name+'（整组）') : '未指定班组'; }
+  if(bt==='person'){ var e=findEmp(o.belongId); return e? (e.name+'（'+e.code+'）') : '未指定人员'; }
+  return wsName(o.wid)||'未指定车间';
+}
+function orderForm(o){
+  var isNew=!o;
+  o = o || { id:'', no:nextOrderNo(), name:'', spec:'', wid:UI.owid||(S.workshops[0]&&S.workshops[0].id)||'',
+    belongType:'workshop', belongId:'', planQty:'', unit:'件', pieceRate:'', due:'', status:'pending', note:'', createdAt:today() };
+  var d=new Date(Date.now()+7*86400000);
+  var dueDefault=o.due || (d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'));
+  var body=`<div class="form-grid">
+    ${fld('生产工单号 *', `<input type="text" id="o-no" value="${esc(o.no)}" placeholder="如 GD-2609-030">`)}
+    ${fld('成品编号', `<input type="text" id="o-pcode" value="${esc(o.productCode||'')}" placeholder="如 CP-2080（选填）">`)}
+    ${fld('产品名称', `<input type="text" id="o-name" value="${esc(o.name)}" placeholder="如 底盘框架焊合（选填）">`)}
+    ${fld('规格型号', `<input type="text" id="o-spec" value="${esc(o.spec)}" placeholder="如 CF-2080（选填）">`)}
+    ${fld('施工对象（车间/班组/人员）', `<select id="o-belong">${belongOptions(o)}</select>`)}
+    ${fld('计划数量', `<input type="number" id="o-plan" value="${o.planQty===''?'':num(o.planQty)}">`)}
+    ${fld('单位', `<input type="text" id="o-unit" value="${esc(o.unit||'件')}">`)}
+    ${fld('计件单价（元）', `<input type="number" step="0.01" id="o-rate" value="${o.pieceRate===''?'':num(o.pieceRate)}">`)}
+    ${fld('交期', `<input type="date" id="o-due" value="${esc(dueDefault)}">`)}
+    ${fld('状态', `<select id="o-status">${Object.keys(ST_NAME).map(function(k){ return `<option value="${k}" ${o.status===k?'selected':''}>${ST_NAME[k]}</option>`; }).join('')}</select>`)}
+  </div>
+  <div class="fld" style="margin-top:10px"><label>备注</label><input type="text" id="o-note" value="${esc(o.note)}"></div>
+  <div class="note" style="margin-top:10px">计件单价 <b>&gt; 0 ＝计件工单</b>（按合格件计价，主要分给计件班组）；<b>不填单价＝日工工单</b>（按工时计，主要分给日工班组）。单价在派工/报工时自动带入，可逐人调整。选「整车间」需再手动派工；选「班组」或「人员」建单后自动派入。</div>
+  <div class="err" id="o-err"></div>`;
+  openModal(isNew?'新建生产工单':'编辑工单 · '+o.no, body,
+    `<button data-act="modal-close">取消</button><button class="pri" data-act="ord-save" data-v="${o.id}">保存</button>`);
+  setTimeout(function(){ $('#o-no').focus(); },30);
+}
+function nextOrderNo(){
+  var y=new Date().getFullYear(), m=String(new Date().getMonth()+1).padStart(2,'0');
+  var prefix='GD-'+String(y).slice(2)+m+'-';
+  var max=0;
+  S.orders.forEach(function(o){ if(o.no.indexOf(prefix)===0){ var v=parseInt(o.no.slice(prefix.length),10); if(!isNaN(v)&&v>max) max=v; } });
+  return prefix+String(max+1).padStart(3,'0');
+}
+function saveOrder(id){
+  var no=$('#o-no').value.trim(), name=$('#o-name').value.trim();
+  if(!no){ $('#o-err').textContent='生产工单号必填'; return; }
+  var dup=S.orders.filter(function(x){ return x.no.toLowerCase()===no.toLowerCase() && x.id!==id; })[0];
+  if(dup){ $('#o-err').textContent='工单号 '+no+' 已存在（'+dup.name+'）'; return; }
+  var bv=$('#o-belong').value.split('|'), raw=bv[0], bid=bv[1];
+  var wid='';
+  if(raw==='w') wid=bid;
+  else if(raw==='g'){ var g=findGroup(bid); wid=g?g.wid:''; }
+  else if(raw==='e'){ var e=findEmp(bid); wid=e?e.wid:''; }
+  var bt=({w:'workshop',g:'group',e:'person'})[raw]||'workshop'; // 统一为完整词口径
+  var o={ no:no, productCode:$('#o-pcode').value.trim(), name:name, spec:$('#o-spec').value.trim(), wid:wid, belongType:bt, belongId:bt==='workshop'?'':bid,
+    planQty:num($('#o-plan').value), unit:$('#o-unit').value.trim()||'件',
+    pieceRate:num($('#o-rate').value), due:$('#o-due').value, status:$('#o-status').value,
+    note:$('#o-note').value.trim() };
+  var isNew=!id;
+  if(id){ Object.assign(findOrder(id), o); o.id=id; } // 补 id，供后续自动派工正确关联
+  else { o.id=uid('o'); o.createdAt=today(); o.archived=false; S.orders.push(o); }
+  // 选班组/人员时自动派工
+  if((isNew || bt!=='workshop') && (bt==='group'||bt==='person')){
+    var targets = bt==='group'
+      ? S.employees.filter(function(x){ return x.gid===bid && x.status==='在岗'; })
+      : [findEmp(bid)].filter(Boolean);
+    var planEach = o.planQty>0 ? Math.max(1, Math.round(o.planQty/Math.max(1,targets.length))) : 0;
+    targets.forEach(function(p){
+      if(S.assigns.filter(function(a){ return a.oid===o.id && a.eid===p.id; })[0]) return;
+      S.assigns.push({ id:uid('a'), oid:o.id, eid:p.id, planQty:planEach,
+        rate: p.type==='piece'? o.pieceRate : 0, startDate:today(), note:'' });
+    });
+    if(o.status==='pending') o.status='doing';
+  }
+  save(true); closeModal(); render();
+  toast(id?'工单已更新':('工单 '+no+' 已创建'+(bt==='group'||bt==='person'?'，已自动派入人员':'')));
+}
+/* ---------- 派工 ---------- */
+function assignModal(oid){
+  var o=findOrder(oid); if(!o) return;
+  var s=orderStat(o);
+  var assigned={}; s.assigns.forEach(function(a){ assigned[a.eid]=a; });
+  UI.openWid=UI.openWid||o.wid||'';
+  var body=`<div class="card" style="margin-bottom:10px"><h2><span>${esc(o.no)} · ${esc(o.name||'未命名工单')}</span>
+      <span class="sub">计划 ${n0(o.planQty)} ${esc(o.unit)}　已排 ${n0(s.good)}　还差 ${n0(Math.max(0,num(o.planQty)-s.good))}</span></h2></div>
+    <div class="rowflex" style="margin-bottom:8px">
+      <span class="lab">按车间/分组选人：</span>
+      <select id="pk-wid" style="max-width:170px">
+        <option value="">全部车间</option>
+        ${S.workshops.map(function(w){ return `<option value="${w.id}" ${UI.openWid===w.id?'selected':''}>${esc(w.name)}</option>`; }).join('')}</select>
+      <select id="pk-gid" style="max-width:170px">${pickGidOptions()}</select>
+      <input type="search" id="pk-q" placeholder="搜索姓名 / 工号" data-f="pkq">
+      <span class="push"></span>
+      <span class="muted">已勾选 <b id="pk-cnt">0</b> 人</span>
+      <button class="pri" data-act="as-add" data-v="${o.id}">＋ 派入选中人员</button>
+    </div>
+    <div class="pick-list">${pickRows(assigned, o).join('')}</div>
+    <div class="note" style="margin-top:10px">每人右侧可填写「本单计划产量」和「本单计件单价」。留空则计划产量按 ${Math.max(1,Math.round(num(o.planQty)/Math.max(1,s.heads||1)))} 均分参考、单价默认 ¥${n2(o.pieceRate)}。</div>`;
+  openModal('派工 · '+o.no, body, `<span class="muted">派入后可在「排产追踪」里调整计划产量、录报工</span><button data-act="modal-close">完成</button>`);
+  $('#pk-wid').addEventListener('change', function(){
+    UI.openWid=this.value; UI.openGid='';
+    $('#pk-gid').innerHTML=pickGidOptions(); // 分组下拉随车间下拉联动重建
+    refreshPick(assigned,o);
+  });
+  $('#pk-gid').addEventListener('change', function(){ UI.openGid=this.value; refreshPick(assigned,o); });
+  $('#pk-q').addEventListener('input', function(){ UI._pkq=this.value; refreshPick(assigned,o); });
+  // 初始聚焦搜索框
+  setTimeout(function(){ var el=$('#pk-q'); if(el && UI._pkq){ el.value=UI._pkq; } },10);
+}
+// 派工弹窗：分组下拉选项，按车间下拉当前选中值联动；选「全部车间」时列出所有分组并带车间前缀
+function pickGidOptions(){
+  var opts='<option value="">全部分组</option>';
+  S.groups.filter(function(g){ return !UI.openWid || g.wid===UI.openWid; }).forEach(function(g){
+    var label=(UI.openWid?'':esc(wsName(g.wid))+' / ')+esc(g.name);
+    opts+='<option value="'+g.id+'"'+(UI.openGid===g.id?' selected':'')+'>'+label+'</option>';
+  });
+  return opts;
+}
+function pickList(assigned){
+  var q=(UI._pkq||'').toLowerCase();
+  return S.employees.filter(function(e){
+    if(e.status!=='在岗') return false;
+    if(UI.openWid && e.wid!==UI.openWid) return false;
+    if(UI.openGid && e.gid!==UI.openGid) return false;
+    if(q && (e.name+e.code+(e.post||'')).toLowerCase().indexOf(q)<0) return false;
+    return true;
+  }).sort(function(a,b){ return (assigned[a.id]?1:0)-(assigned[b.id]?1:0); });
+}
+function pickRows(assigned, o){
+  var list=pickList(assigned);
+  if(!list.length) return ['<div class="empty">没有符合条件的人员</div>'];
+  return list.map(function(e){
+    var a=assigned[e.id];
+    return `<label class="pick-item">
+      <input type="checkbox" class="pk-ck" value="${e.id}" ${a?'disabled':''}>
+      <span class="avt ${e.type==='piece'?'':'p'}" style="width:26px;height:26px;font-size:12px">${esc(e.name.slice(0,1))}</span>
+      <span class="nm">${esc(e.name)}</span>
+      <span class="mini-lab">${esc(e.code)}　${esc(wsName(e.wid))}/${esc(grpName(e.gid))}　${esc(e.post||'')}</span>
+      <span class="badge ${e.type==='piece'?'b-piece':'b-day'}">${e.type==='piece'?'计件':'日工'}</span>
+      ${a? `<span class="muted">已在本单（计划 ${n0(a.planQty)}）</span>`
+         : `<span class="push"></span>
+            <span class="mini-lab">计划</span><input type="number" class="pk-plan" data-e="${e.id}" placeholder="自动">
+            <span class="mini-lab">单价</span><input type="number" step="0.01" class="pk-rate" data-e="${e.id}" value="${e.type==='piece'?n2(o.pieceRate):''}" placeholder="${e.type==='piece'?'¥/件':'日工不计'}">`}
+    </label>`;
+  });
+}
+function refreshPick(assigned, o){
+  var el=$('.pick-list'); if(!el) return;
+  el.innerHTML=pickRows(assigned,o).join('');
+  updatePickCnt();
+}
+function updatePickCnt(){
+  var c=$$('.pk-ck:checked').length; var el=$('#pk-cnt'); if(el) el.textContent=c;
+}
+function doAssignAdd(oid){
+  var o=findOrder(oid); if(!o) return;
+  var s=orderStat(o);
+  var rest=Math.max(0, num(o.planQty)-s.good);
+  var checked=$$('.pk-ck:checked');
+  if(!checked.length){ toast('请先勾选要派入的人员'); return; }
+  var added=0;
+  checked.forEach(function(ck){
+    var eid=ck.value;
+    var dup=S.assigns.filter(function(a){ return a.oid===o.id && a.eid===eid; })[0];
+    if(dup) return;
+    var planInput=$('.pk-plan[data-e="'+eid+'"]');
+    var rateInput=$('.pk-rate[data-e="'+eid+'"]');
+    var emp=findEmp(eid);
+    var plan = planInput && planInput.value!=='' ? num(planInput.value) : Math.round(rest/checked.length);
+    S.assigns.push({ id:uid('a'), oid:o.id, eid:eid, planQty:plan,
+      rate: emp && emp.type==='piece' ? (rateInput&&rateInput.value!==''?num(rateInput.value):num(o.pieceRate)) : 0,
+      startDate:today(), note:'' });
+    added++;
+  });
+  if(o.status==='pending') o.status='doing';
+  save(true); toast('已派入 '+added+' 人'); closeModal(); render(); detailModal(oid);
+}
+/* ---------- 排产追踪（明细） ---------- */
+function detailModal(oid){
+  var o=findOrder(oid); if(!o) return;
+  var s=orderStat(o);
+  var rows=s.assigns.map(function(a){
+    var st=assignStat(a); var e=findEmp(a.eid)||{name:'?',type:'piece',code:''};
+    return `<tr>
+      <td data-label="姓名"><div class="who"><span class="avt ${e.type==='piece'?'':'p'}" style="width:26px;height:26px;font-size:12px">${esc(e.name.slice(0,1))}</span>
+        <div><div style="font-weight:600">${esc(e.name)}</div><div class="muted">${esc(e.code)}　${esc(wsName(e.wid))}/${esc(grpName(e.gid))}</div></div></div></td>
+      <td data-label="类型"><span class="badge ${e.type==='piece'?'b-piece':'b-day'}">${e.type==='piece'?'计件':'日工'}</span></td>
+      <td data-label="计划产量" class="num"><input type="number" class="unit-in a-plan" data-v="${a.id}" value="${num(a.planQty)}"></td>
+      <td data-label="单价" class="num">${e.type==='piece'? `¥${n2(a.rate)}` : `¥${n2(e.dayRate)}/天`}</td>
+      <td data-label="累计报工" class="num">${n2(st.done)}</td>
+      <td data-label="合格" class="num"><b>${n2(st.good)}</b> <span class="muted">(${n2(st.defect)}不良)</span></td>
+      <td data-label="达成"><div class="barwrap"><span class="bar"><i class="${st.reach>=1?'g':(st.reach<0.5?'r':'a')}" style="width:${Math.min(100,st.reach*100)}%"></i></span><span class="pct">${Math.round(st.reach*100)}%</span></div></td>
+      <td data-label="工时" class="num">${n0(st.hours)} <span class="muted">/有效${n0(st.eff)}</span></td>
+      <td data-label="效率" class="num">${e.type==='piece'? n2(st.effPH)+' 件/h' : n2(st.useRate*100)+'% 利用率'}</td>
+      <td data-label="工资" class="num"><b>¥${n0(st.wage)}</b></td>
+      <td data-label="操作"><div class="rowflex" style="gap:5px">
+        <button class="mini-btn ok" data-act="rep-open" data-v="${a.id}">报工</button>
+        <button class="mini-btn" data-act="rep-hist" data-v="${a.id}">记录</button>
+        <button class="mini-btn danger" data-act="as-del" data-v="${a.id}">移除</button>
+      </div></td></tr>`;
+  }).join('');
+  var left=dayDiff(today(), o.due||today());
+  var body=`<div class="ogrid" style="margin-bottom:10px">
+      <div><span>工单号</span> <b>${esc(o.no)}</b></div>
+      <div><span>产品</span> ${esc(o.name)} ${esc(o.spec||'')}</div>
+      <div><span>施工对象</span> ${esc(belongText(o))}</div>
+      <div><span>状态</span> <span class="badge ${ST_CLS[o.status]}">${ST_NAME[o.status]}</span></div>
+      <div><span>计划 / 完成</span> ${n0(o.planQty)} / ${n0(s.good)} ${esc(o.unit)}（${Math.round(s.reach*100)}%）</div>
+      <div><span>交期</span> ${o.due? (left<0&&o.status!=='done'? `<span class="warn">超期 ${-left} 天</span>` : o.due+'（剩'+left+'天）') : '未设'}</div>
+      <div><span>参与人数</span> ${s.heads} 人（${s.activeHeads} 人有产出）</div>
+      <div><span>累计工时</span> ${n0(s.hours)} h</div>
+      <div><span>计件工资</span> ¥${n0(s.wagePiece)}</div>
+      <div><span>日工工资</span> ¥${n0(s.wageDay)}</div>
+      <div><span>人工成本合计</span> <b>¥${n0(s.wage)}</b></div>
+      <div><span>单件人工成本</span> ¥${n2(s.unitCost)}</div>
+    </div>
+    <div class="toolbar">
+      <button class="pri" data-act="ord-assign" data-v="${o.id}">＋ 继续派工</button>
+      <button class="ok" data-act="ord-report" data-v="${o.id}">整单日报工</button>
+      <button data-act="as-saveplan" data-v="${o.id}">保存计划产量</button>
+      <span class="push"></span><span class="muted">修改「计划产量」后需点保存</span>
+    </div>
+    ${s.assigns.length? `<div class="tw"><table class="grid"><thead><tr>
+      <th>人员</th><th>类型</th><th class="num">计划产量</th><th class="num">计价</th><th class="num">报工</th>
+      <th class="num">合格</th><th>达成率</th><th class="num">工时</th><th class="num">效率</th><th class="num">工资</th><th>操作</th>
+    </tr></thead><tbody>${rows}</tbody>
+    <tr class="sumrow"><td>合计</td><td>—</td><td class="num">${n0(s.assigns.reduce(function(t,a){return t+num(a.planQty);},0))}</td>
+      <td>—</td><td class="num">${n2(s.done)}</td><td class="num">${n2(s.good)}</td>
+      <td>${Math.round(s.reach*100)}%</td><td class="num">${n0(s.hours)}</td><td>—</td>
+      <td class="num">¥${n0(s.wage)}</td><td></td></tr>
+    </table></div>` : `<div class="empty">还没有派工，点「继续派工」把通讯录里的人派进来</div>`}`;
+  openModal('排产追踪 · '+o.no, body, `<button data-act="modal-close">关闭</button>`);
+}
+/* ---------- 报工 ---------- */
+function reportModal(aid){
+  var a=findAssign(aid); if(!a) return;
+  var e=findEmp(a.eid), o=findOrder(a.oid);
+  var st=assignStat(a);
+  var body=`<div class="card" style="margin-bottom:10px"><h2><span>${esc(e?e.name:'')}　<span class="sub">${esc(o?o.no:'')} ${esc(o?o.name:'')}</span></span>
+      <span class="sub">累计合格 ${n0(st.good)} / 计划 ${n0(a.planQty)}</span></h2></div>
+    <div class="form-grid">
+      ${fld('报工日期', `<input type="date" id="r-date" value="${today()}">`)}
+      ${fld('报工数量', `<input type="number" id="r-qty" value="">`)}
+      ${fld('不良 / 返工数', `<input type="number" id="r-def" value="0">`)}
+      ${fld('出勤工时(h)', `<input type="number" step="0.5" id="r-hours" value="${e&&e.type==='day'?n2(S.settings.stdHours):'8'}">`)}
+      ${fld('有效工时(h)', `<input type="number" step="0.5" id="r-eff" value="${e&&e.type==='day'?n2(S.settings.stdHours):'8'}">`)}
+    </div>
+    <div class="fld" style="margin-top:10px"><label>备注</label><input type="text" id="r-note" placeholder="如：设备故障停机 1h"></div>
+    <div class="note" style="margin-top:10px">${e&&e.type==='piece'
+      ? `计件工资 =（报工数量 − 不良）× ¥${n2(a.rate)} = ¥<b id="r-prev">0</b>`
+      : `日工工资 = 出勤工时折算：标准内 ¥${n2(e?num(e.dayRate)/num(S.settings.stdHours):0)}/h，超出 ${n2(S.settings.stdHours)}h 部分 ×${n2(S.settings.otRate)} = ¥<b id="r-prev">0</b>`}</div>
+    <div class="rowflex"><button class="mini-btn" data-act="rep-last" data-v="${aid}">复制上一次报工</button>
+      <span class="push"></span><span class="muted">同一天重复提交会覆盖原记录</span></div>`;
+  openModal('报工登记', body,
+    `<button data-act="modal-close">取消</button><button class="pri" data-act="rep-save" data-v="${aid}">保存报工</button>`, {size:'md'});
+  ['r-qty','r-def','r-hours','r-eff'].forEach(function(id){
+    $('#'+id).addEventListener('input', function(){
+      var q=num($('#r-qty').value), d=num($('#r-def').value), h=num($('#r-hours').value);
+      var w = e && e.type==='piece' ? (q-d)*num(a.rate)
+        : num(e?e.dayRate:0)/num(S.settings.stdHours)*(Math.min(h,num(S.settings.stdHours))+Math.max(0,h-num(S.settings.stdHours))*num(S.settings.otRate));
+      var el=$('#r-prev'); if(el) el.textContent=n2(w);
+    });
+  });
+}
+function saveReport(aid){
+  var date=$('#r-date').value||today();
+  var q=num($('#r-qty').value), d=num($('#r-def').value), h=num($('#r-hours').value), ef=num($('#r-eff').value);
+  if(q===0 && h===0){ toast('请填写报工数量或工时'); return; }
+  if(d>q && q>0){ toast('不良数不能大于报工数量'); return; }
+  var old=S.reports.filter(function(r){ return r.aid===aid && r.date===date; })[0];
+  var payload={ aid:aid, date:date, qty:q, defect:d, hours:h, eff:ef, note:$('#r-note').value.trim() };
+  if(old) Object.assign(old, payload); else { payload.id=uid('r'); S.reports.push(payload); }
+  var o=findOrder(findAssign(aid).oid);
+  if(o && o.status==='pending') o.status='doing';
+  save(true); closeModal(); render();
+  var a=findAssign(aid); if(a) detailModal(a.oid);
+  toast('报工已保存');
+}
+function histModal(aid){
+  var a=findAssign(aid); if(!a) return;
+  var e=findEmp(a.eid), o=findOrder(a.oid);
+  var reps=S.reports.filter(function(r){ return r.aid===aid; }).sort(function(x,y){ return y.date.localeCompare(x.date); });
+  var body= reps.length? `<div class="tw"><table class="grid"><thead><tr>
+      <th>日期</th><th class="num">报工</th><th class="num">不良</th><th class="num">合格</th>
+      <th class="num">出勤工时</th><th class="num">有效工时</th><th class="num">当日工资</th><th>备注</th><th></th>
+    </tr></thead><tbody>${reps.map(function(r){
+      var w=repWage(r, e||{type:'piece'}, num(a.rate));
+      return `<tr><td data-label="日期">${esc(r.date)}</td><td data-label="报工" class="num">${n0(r.qty)}</td>
+        <td data-label="不良" class="num">${n0(r.defect)}</td><td data-label="合格" class="num">${n0(num(r.qty)-num(r.defect))}</td>
+        <td data-label="出勤" class="num">${n2(r.hours)}</td><td data-label="有效" class="num">${n2(r.eff)}</td>
+        <td data-label="工资" class="num">¥${n2(w)}</td><td data-label="备注">${esc(r.note||'')}</td>
+        <td data-label=""><button class="mini-btn danger" data-act="rep-del" data-v="${r.id}">删</button></td></tr>`;
+    }).join('')}</tbody></table></div>` : '<div class="empty">暂无报工记录</div>';
+  openModal('报工记录 · '+(e?e.name:'')+' · '+(o?o.no:''), body, `<button data-act="modal-close">关闭</button>`);
+}
+/* ---------- 整单日报工 ---------- */
+function batchReportModal(oid){
+  var o=findOrder(oid); if(!o) return;
+  var s=orderStat(o);
+  if(!s.assigns.length){ toast('该工单还没有派工'); return; }
+  var isPiece=num(o.pieceRate)>0, std=n2(S.settings.stdHours);
+  var topHtml = isPiece
+    ? `<div class="form-grid" style="margin-bottom:10px">
+        ${fld('班组总产量 *', `<input type="number" id="b-total" placeholder="合格 + 不良 总数">`)}
+        ${fld('总不良数', `<input type="number" id="b-tdef" value="0">`)}
+        ${fld('报工日期', `<input type="date" id="b-date" value="${today()}">`)}
+      </div>`
+    : `<div class="rowflex" style="margin-bottom:10px"><span class="lab">报工日期</span><input type="date" id="b-date" value="${today()}"></div>`;
+  var rows=s.assigns.map(function(a){
+    var e=findEmp(a.eid)||{name:'?',code:'',type:'piece'};
+    return `<label class="pick-item">
+      <input type="checkbox" class="bp-ck" value="${a.id}" checked>
+      <span class="avt ${e.type==='piece'?'':'p'}" style="width:26px;height:26px;font-size:12px">${esc(e.name.slice(0,1))}</span>
+      <span class="nm">${esc(e.name)}</span>
+      <span class="mini-lab">${esc(e.code)}　${esc(wsName(e.wid))}/${esc(grpName(e.gid))}</span>
+      <span class="push"></span>
+      <span class="mini-lab">工时</span><input type="number" step="0.5" class="bp-h" data-a="${a.id}" value="${std}" style="width:70px">
+    </label>`;
+  }).join('');
+  var note = isPiece
+    ? `<div class="note">顶部只填一次总产量/不良数，勾选实际参加人员并填工时；提交时每人产量＝总产量 ÷ 参与人数（<b>尾差给最后一人</b>）。</div>`
+    : `<div class="note">日工工单只需勾选参加人员并填工时，按出勤工时计入日工结算。</div>`;
+  var body=topHtml+`<div class="pick-list">${rows}</div>`+note+
+    `<div class="rowflex" style="margin-top:8px"><button class="mini-btn" id="bp-all">全选</button><button class="mini-btn" id="bp-none">全不选</button>
+     <span class="push"></span><span class="muted">已勾选 <b id="bp-cnt">0</b> 人　同一天重复提交会覆盖</span></div>`;
+  openModal('班组报工 · '+o.no, body,
+    `<button data-act="modal-close">取消</button><button class="pri" data-act="rep-batch" data-v="${o.id}">提交报工</button>`, {size:'md'});
+  $('#bp-all').onclick=function(){ $$('.bp-ck').forEach(function(c){c.checked=true;}); upd(); };
+  $('#bp-none').onclick=function(){ $$('.bp-ck').forEach(function(c){c.checked=false;}); upd(); };
+  $$('.bp-ck').forEach(function(c){ c.addEventListener('change',upd); });
+  function upd(){ var el=$('#bp-cnt'); if(el) el.textContent=$$('.bp-ck:checked').length; }
+  upd();
+}
+function saveBatchReport(oid){
+  var o=findOrder(oid); if(!o) return;
+  var date=$('#b-date').value||today();
+  var cks=$$('.bp-ck:checked');
+  if(!cks.length){ toast('请勾选参加人员'); return; }
+  var isPiece=num(o.pieceRate)>0;
+  var aids=cks.map(function(c){ return c.value; }), n=aids.length;
+  var total=0, tdef=0, qs={}, ds={};
+  if(isPiece){
+    total=num($('#b-total').value); tdef=num($('#b-tdef').value);
+    if(total<=0){ toast('请填写班组总产量'); return; }
+    if(tdef>total){ toast('总不良数不能大于总产量'); return; }
+    var accQ=0, accD=0; // 均分，尾差给最后一人
+    aids.forEach(function(aid,i){
+      if(i<n-1){ qs[aid]=Math.round(total/n*100)/100; ds[aid]=Math.round(tdef/n*100)/100; accQ+=qs[aid]; accD+=ds[aid]; }
+      else { qs[aid]=Math.round((total-accQ)*100)/100; ds[aid]=Math.round((tdef-accD)*100)/100; }
+    });
+  }
+  var cnt=0;
+  aids.forEach(function(aid){
+    var a=findAssign(aid); if(!a) return;
+    var hEl=$('.bp-h[data-a="'+aid+'"]');
+    var h=hEl?num(hEl.value):0;
+    var q=isPiece?qs[aid]:0, d=isPiece?ds[aid]:0;
+    if(!isPiece&&h===0) return;
+    var old=S.reports.filter(function(r){ return r.aid===aid&&r.date===date; })[0];
+    var p={ aid:aid, date:date, qty:q, defect:d, hours:h, eff:h, note:'' };
+    if(old) Object.assign(old,p); else { p.id=uid('r'); S.reports.push(p); }
+    cnt++;
+  });
+  if(o.status==='pending') o.status='doing';
+  save(true); closeModal(); render(); toast('已提交 '+cnt+' 条班组报工'); detailModal(oid);
+}
+/* ---------- 杂工登记表单 ---------- */
+function miscForm(m){
+  var isNew=!m;
+  m=m||{id:'',date:today(),eid:'',hours:8,note:''};
+  var cands=S.employees.filter(function(e){ return e.type==='piece'&&e.status!=='离职'; });
+  var body=`<div class="form-grid">
+    ${fld('日期', `<input type="date" id="m-date" value="${esc(m.date)}">`)}
+    ${fld('计件员工 *', `<select id="m-eid"><option value="">请选择…</option>${cands.map(function(e){ return `<option value="${e.id}" ${e.id===m.eid?'selected':''}>${esc(e.code)} ${esc(e.name)}（${esc(grpName(e.gid))}）</option>`; }).join('')}</select>`)}
+    ${fld('杂工工时(h)', `<input type="number" step="0.5" id="m-hours" value="${n2(m.hours)}">`)}
+  </div>
+  <div class="fld" style="margin-top:10px"><label>备注（工作内容）</label><input type="text" id="m-note" value="${esc(m.note)}" placeholder="如 搬运、清理厂区"></div>
+  <div class="note">按全厂统一杂工时薪 ¥${n2(S.settings.miscRate)}/h 计费，金额计入该员工所在计件班组的结算。</div>
+  <div class="err" id="m-err"></div>`;
+  openModal(isNew?'杂工登记':'编辑杂工登记', body,
+    `<button data-act="modal-close">取消</button><button class="pri" data-act="misc-save" data-v="${m.id}">保存</button>`);
+}
+function saveMisc(id){
+  var eid=$('#m-eid').value, h=num($('#m-hours').value);
+  if(!eid){ $('#m-err').textContent='请选择员工'; return; }
+  if(h<=0){ $('#m-err').textContent='请填写工时'; return; }
+  var o={ date:$('#m-date').value||today(), eid:eid, hours:h, note:$('#m-note').value.trim() };
+  if(id){ Object.assign(S.misc.filter(function(x){return x.id===id;})[0],o); }
+  else { o.id=uid('m'); S.misc.push(o); }
+  save(true); closeModal(); render(); toast('杂工登记已保存');
+}
+/* ---------- 工单快速导入 ---------- */
+var IMP = { headers:[], rows:[], map:{}, dupMode:'skip' };
+var IMP_FIELDS=[
+  {k:'no', t:'生产工单号', al:['工单号','单号','no','订单号','生产工单号']},
+  {k:'productCode', t:'成品编号', al:['成品编号','成品编码','产品编号','产品编码','productcode','code']},
+  {k:'name', t:'产品名称', al:['产品名称','品名','产品','名称','name']},
+  {k:'spec', t:'规格型号', al:['规格','型号','规格型号','spec']},
+  {k:'planQty', t:'计划数量', al:['计划数量','数量','计划','qty','planqty']},
+  {k:'unit', t:'单位', al:['单位','unit']},
+  {k:'pieceRate', t:'计件单价', al:['计件单价','单价','工价','rate','piecerate']},
+  {k:'due', t:'交期', al:['交期','交货日期','截止日期','due']}
+];
+function normDate(v){
+  var m=String(v).match(/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})/);
+  return m? m[1]+'-'+m[2].padStart(2,'0')+'-'+m[3].padStart(2,'0') : v;
+}
+function importOrders(){
+  IMP.headers=[]; IMP.rows=[]; IMP.map={};
+  var body=`<div class="note">支持 Excel（.xlsx/.xls）、CSV 文件，或直接粘贴表格文字。必需列：<b>生产工单号</b>；建议列：成品编号、产品名称、规格型号、计划数量、单位、计件单价、交期。可先下载示例模板按列填写。</div>
+    <div class="rowflex" style="margin-bottom:10px">
+      <button class="pri" id="imp-file">📂 选择文件（Excel / CSV）</button>
+      <button id="imp-tpl">📋 下载导入模板（.xlsx）</button>
+      <input type="file" id="imp-fileinp" accept=".xlsx,.xls,.csv" style="display:none">
+    </div>
+    <div class="fld"><label>或粘贴表格文字（首行可为表头）</label>
+      <textarea id="imp-text" rows="6" style="width:100%" placeholder="生产工单号	成品编号	产品名称	规格型号	计划数量	单位	计件单价	交期"></textarea></div>
+    <div style="margin-top:8px"><button class="pri" id="imp-parse">识别内容 →</button></div>`;
+  openModal('快速导入生产工单', body, `<button data-act="modal-close">取消</button>`);
+  $('#imp-file').onclick=function(){ $('#imp-fileinp').click(); };
+  $('#imp-tpl').onclick=importTemplate;
+  $('#imp-fileinp').onchange=function(){
+    var f=this.files[0]; if(!f) return;
+    var fr=new FileReader();
+    fr.onload=function(){
+      try{
+        if(/\.csv$/i.test(f.name)) parseImportText(fr.result);
+        else if(window.XLSX){
+          var wb=XLSX.read(new Uint8Array(fr.result),{type:'array'});
+          var sh=wb.Sheets[wb.SheetNames[0]];
+          showMapping(XLSX.utils.sheet_to_json(sh,{header:1,raw:false,defval:''}));
+        } else toast('Excel 解析组件未加载，请改用粘贴或 CSV');
+      }catch(e){ toast('文件解析失败：'+e.message); }
+    };
+    if(/\.csv$/i.test(f.name)) fr.readAsText(f,'utf-8'); else fr.readAsArrayBuffer(f);
+  };
+  $('#imp-parse').onclick=function(){ parseImportText($('#imp-text').value); };
+}
+// 下载工单导入示例模板（.xlsx）：表头 + 计件/日工两个示例行
+var XLSX_MIME='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+function importTemplate(){
+  var head=['生产工单号','成品编号','产品名称','规格型号','计划数量','单位','计件单价','交期'];
+  var samples=[
+    ['GD-2609-001','CP-2080','底盘框架焊合','CF-2080',100,'件',10,'2026-10-10'],
+    ['GD-2609-002','','厂区清理（日工）','','','','','2026-10-12']
+  ];
+  if(window.XLSX){
+    var ws=XLSX.utils.aoa_to_sheet([head].concat(samples));
+    ws['!cols']=[{wch:14},{wch:12},{wch:18},{wch:12},{wch:10},{wch:7},{wch:10},{wch:12}];
+    var wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,ws,'工单导入');
+    var out=XLSX.write(wb,{bookType:'xlsx',type:'array'});
+    download('生产工单导入模板.xlsx', out, XLSX_MIME);
+  } else {
+    download('生产工单导入模板.csv', csv([head].concat(samples)));
+  }
+  toast('模板已下载');
+}
+function parseImportText(txt){
+  txt=String(txt).replace(/^\ufeff/,'').trim();
+  if(!txt){ toast('内容为空'); return; }
+  var aoa = txt.indexOf('"')>=0 ? parseCSVtext(txt) : (function(){
+    var lines=txt.split(/\r?\n/);
+    var first=lines[0];
+    var sep= first.indexOf('\t')>=0?'\t' : first.indexOf(';')>=0?';' : first.indexOf(',')>=0?',' : /\s{2,}/;
+    return lines.map(function(l){ return l.split(sep).map(function(c){ return c.trim(); }); });
+  })();
+  showMapping(aoa);
+}
+function parseCSVtext(txt){
+  var rows=[], row=[], cur='', q=false;
+  for(var i=0;i<txt.length;i++){
+    var c=txt[i];
+    if(q){
+      if(c==='"'){ if(txt[i+1]==='"'){cur+='"';i++;} else q=false; } else cur+=c;
+    } else if(c==='"') q=true;
+      else if(c===','){ row.push(cur); cur=''; }
+      else if(c==='\n'){ row.push(cur); rows.push(row); row=[]; cur=''; }
+      else if(c!=='\r') cur+=c;
+  }
+  row.push(cur); rows.push(row);
+  return rows;
+}
+function showMapping(aoa){
+  aoa=aoa.filter(function(r){ return r.some(function(c){ return String(c).trim()!==''; }); });
+  if(!aoa.length){ toast('未识别到有效行'); return; }
+  var first=aoa[0].map(function(c){ return String(c).trim(); });
+  var hasHead=first.some(function(h){ return IMP_FIELDS.some(function(f){ return f.al.indexOf(h.toLowerCase())>=0; }); });
+  IMP.headers = hasHead? first : first.map(function(_,i){ return '第'+(i+1)+'列'; });
+  IMP.rows = hasHead? aoa.slice(1) : aoa;
+  IMP.map={};
+  if(hasHead){
+    IMP.headers.forEach(function(h,ci){
+      IMP_FIELDS.forEach(function(f){
+        if(f.al.indexOf(h.toLowerCase())>=0&&IMP.map[f.k]===undefined) IMP.map[f.k]=ci;
+      });
+    });
+  } else ['no','name','spec','planQty','unit','pieceRate','due'].forEach(function(k,i){ if(i<IMP.headers.length) IMP.map[k]=i; });
+  renderMapping();
+}
+function renderMapping(){
+  var opts=IMP.headers.map(function(h,ci){
+    return fld(h, `<select class="imp-map" data-ci="${ci}"><option value="">不导入</option>
+      ${IMP_FIELDS.map(function(f){ return `<option value="${f.k}" ${IMP.map[f.k]===ci?'selected':''}>${f.t}</option>`; }).join('')}</select>`);
+  }).join('');
+  var preview=IMP.rows.slice(0,8).map(function(r){
+    return `<tr>${r.map(function(c){ return `<td>${esc(c)}</td>`; }).join('')}</tr>`;
+  }).join('');
+  var body=`<div class="note">确认列对应字段（可调整）。共 <b>${IMP.rows.length}</b> 行；与现有工单号重复 <b>${countDup()}</b> 行。</div>
+    <div class="form-grid">${opts}</div>
+    <div class="rowflex" style="margin:10px 0"><span class="lab">重复工单号</span>
+      <label><input type="radio" name="dup" value="skip" ${IMP.dupMode==='skip'?'checked':''}> 跳过重复</label>
+      <label><input type="radio" name="dup" value="update" ${IMP.dupMode==='update'?'checked':''}> 更新已有工单</label></div>
+    <div class="muted" style="margin-bottom:6px">预览（前 8 行原始数据）：</div>
+    <div class="tw" style="max-height:220px"><table class="grid"><tbody>${preview}</tbody></table></div>`;
+  openModal('确认列映射 · 导入工单', body,
+    `<button data-act="modal-close">取消</button><button class="pri" id="imp-ok">确认导入</button>`, {size:'md'});
+  $$('.imp-map').forEach(function(sel){
+    sel.onchange=function(){
+      var ci=num(this.getAttribute('data-ci'));
+      Object.keys(IMP.map).forEach(function(kk){ if(IMP.map[kk]===ci) delete IMP.map[kk]; });
+      if(this.value) IMP.map[this.value]=ci;
+    };
+  });
+  $$('input[name=dup]').forEach(function(r){ r.onchange=function(){ IMP.dupMode=this.value; }; });
+  $('#imp-ok').onclick=doImport;
+}
+function countDup(){
+  if(IMP.map.no===undefined) return 0;
+  return IMP.rows.filter(function(r){
+    var no=String(r[IMP.map.no]||'').trim();
+    return no&&S.orders.some(function(o){ return o.no.toLowerCase()===no.toLowerCase(); });
+  }).length;
+}
+function doImport(){
+  if(IMP.map.no===undefined){ toast('请把某列映射为「生产工单号」'); return; }
+  var added=0, updated=0, skipped=0;
+  IMP.rows.forEach(function(r){
+    function gv(k){ var ci=IMP.map[k]; return ci===undefined?'':String(r[ci]==null?'':r[ci]).trim(); }
+    var no=gv('no'); if(!no) return;
+    var ex=S.orders.filter(function(o){ return o.no.toLowerCase()===no.toLowerCase(); })[0];
+    if(ex){
+      if(IMP.dupMode==='skip'){ skipped++; return; }
+      ['productCode','name','spec','unit'].forEach(function(k){ var v=gv(k); if(v!=='') ex[k]=v; });
+      var dv=normDate(gv('due')); if(dv) ex.due=dv;
+      if(IMP.map.planQty!==undefined) ex.planQty=num(gv('planQty'));
+      if(IMP.map.pieceRate!==undefined) ex.pieceRate=num(gv('pieceRate'));
+      updated++; return;
+    }
+    var wid=UI.owid||(S.workshops[0]&&S.workshops[0].id)||'';
+    S.orders.push({ id:uid('o'), no:no, productCode:gv('productCode'), name:gv('name'), spec:gv('spec'),
+      planQty:num(gv('planQty')), unit:gv('unit')||'件', pieceRate:num(gv('pieceRate')),
+      due:normDate(gv('due')), status:'pending', archived:false, doneOn:'',
+      wid:wid, belongType:'workshop', belongId:'', note:'', createdAt:today() });
+    added++;
+  });
+  save(true); closeModal(); render();
+  toast('导入完成：新增 '+added+(updated?'，更新 '+updated:'')+(skipped?'，跳过 '+skipped:''));
+}
+/* ---------- 快速报工（顶部按钮） ---------- */
+function quickReport(){
+  var empId='';
+  var body=`<div class="note">先选人，再逐条填写当天参与的工单产出。适合工人收工后一次性补录。</div>
+   <div class="fld"><label>报工人员</label>
+     <select id="qr-emp"><option value="">请选择人员…</option>
+      ${S.employees.filter(function(e){ return e.status!=='离职'; }).map(function(e){
+        return `<option value="${e.id}">${esc(e.code)} ${esc(e.name)}　${esc(wsName(e.wid))}/${esc(grpName(e.gid))}　${e.type==='piece'?'计件':'日工'}</option>`; }).join('')}
+     </select></div>
+   <div id="qr-body"></div>`;
+  openModal('快速报工', body, `<button data-act="modal-close">关闭</button>`, {size:'md'});
+  $('#qr-emp').addEventListener('change', function(){ renderQuickRows(this.value); });
+}
+function renderQuickRows(eid){
+  var box=$('#qr-body'); if(!box) return;
+  if(!eid){ box.innerHTML=''; return; }
+  var e=findEmp(eid);
+  var todayAs=S.assigns.filter(function(a){ return a.eid===eid; });
+  var html=`<div class="rowflex" style="margin:10px 0"><span class="lab">日期</span><input type="date" id="qr-date" value="${today()}"></div>`;
+  if(!todayAs.length){ box.innerHTML=html+'<div class="empty">该人员尚未派入任何工单，请先在工单里派工</div>'; return; }
+  html+=`<div class="tw"><table class="grid"><thead><tr><th>工单</th><th>状态</th><th class="num">报工数量</th><th class="num">不良</th><th class="num">出勤工时</th><th class="num">有效工时</th></tr></thead><tbody>`;
+  todayAs.forEach(function(a){
+    var o=findOrder(a.oid); if(!o) return;
+    var last=S.reports.filter(function(r){ return r.aid===a.id; }).sort(function(x,y){ return y.date.localeCompare(x.date); })[0];
+    html+=`<tr><td data-label="工单">${esc(o.no)}<div class="muted">${esc(o.name)}</div></td>
+      <td data-label="状态"><span class="badge ${ST_CLS[o.status]}">${ST_NAME[o.status]}</span></td>
+      <td data-label="数量" class="num"><input type="number" class="unit-in" id="qq-${a.id}" value="${e.type==='piece'&&last?num(last.qty):''}" placeholder="0"></td>
+      <td data-label="不良" class="num"><input type="number" class="unit-in" id="qd-${a.id}" value="0"></td>
+      <td data-label="出勤" class="num"><input type="number" step="0.5" class="unit-in" id="qh-${a.id}" value="${e.type==='day'?n2(S.settings.stdHours):'8'}"></td>
+      <td data-label="有效" class="num"><input type="number" step="0.5" class="unit-in" id="qe-${a.id}" value="${e.type==='day'?n2(S.settings.stdHours):'8'}"></td></tr>`;
+  });
+  html+=`</tbody></table></div><div style="margin-top:10px"><button class="pri" data-act="qr-save" data-v="${eid}">保存报工</button></div>`;
+  box.innerHTML=html;
+}
+function saveQuick(eid){
+  var date=$('#qr-date').value||today();
+  var as=S.assigns.filter(function(a){ return a.eid===eid; });
+  var cnt=0;
+  as.forEach(function(a){
+    var q=$('#qq-'+a.id), h=$('#qh-'+a.id); if(!q) return;
+    var qv=num(q.value), hv=num(h.value);
+    if(qv===0&&hv===0) return;
+    var old=S.reports.filter(function(r){ return r.aid===a.id && r.date===date; })[0];
+    var p={ aid:a.id, date:date, qty:qv, defect:num($('#qd-'+a.id).value), hours:hv, eff:num($('#qe-'+a.id).value), note:'' };
+    if(old) Object.assign(old,p); else { p.id=uid('r'); S.reports.push(p); }
+    var o=findOrder(a.oid); if(o&&o.status==='pending') o.status='doing';
+    cnt++;
+  });
+  save(true); closeModal(); render(); toast('已提交 '+cnt+' 条报工');
+}
+/* ==================== 屏③ 效率与工资成本 ==================== */
+function statRows(){
+  var since=UI.since||'', until=UI.until||'';
+  var rows=[];
+  S.reports.forEach(function(r){
+    if(since && r.date<since) return;
+    if(until && r.date>until) return;
+    var a=findAssign(r.aid); if(!a) return;
+    var e=findEmp(a.eid); if(!e) return;
+    var o=findOrder(a.oid); if(!o) return;
+    if(o.archived && !UI.showArchived) return; // 默认排除已归档工单，勾选「显示已归档」后纳入
+    if(UI.swid && o.wid!==UI.swid) return;
+    if(UI.soid && a.oid!==UI.soid) return;
+    if(UI.stype && e.type!==UI.stype) return;
+    if(UI.sgid && e.gid!==UI.sgid) return;
+    rows.push({ date:r.date, aid:a.id, rate:num(a.rate), e:e, o:o,
+      qty:num(r.qty), defect:num(r.defect), good:num(r.qty)-num(r.defect),
+      hours:num(r.hours), eff:num(r.eff), wage:repWage(r, e, num(a.rate)) });
+  });
+  return rows;
+}
+function groupSum(rows, keyFn){
+  var map={}, order=[];
+  rows.forEach(function(r){
+    var k=keyFn(r); var label=(k&&k.label)||k;
+    if(!map[k]){ map[k]={ key:k, label:label, qty:0, good:0, defect:0, hours:0, eff:0, wageP:0, wageD:0, wage:0, people:{}, days:{} }; order.push(k); }
+    var m=map[k];
+    m.qty+=r.qty; m.good+=r.good; m.defect+=r.defect; m.hours+=r.hours; m.eff+=r.eff;
+    if(r.e.type==='piece') m.wageP+=r.wage; else m.wageD+=r.wage;
+    m.wage+=r.wage; m.people[r.e.id]=1; m.days[r.date]=1;
+  });
+  return order.map(function(k){ var m=map[k]; return m; });
+}
+function renderStats(){
+  if(!UI.since) UI.since=today().slice(0,7)+'-01';
+  var tabs=[['group','计件班组/日工结算'],['day','日工结算'],['bill','计件班组统计报表'],['chart','效率分析']];
+  var html=[`<div class="toolbar">
+    <span class="lab">统计周期</span><input type="date" data-f="since" value="${esc(UI.since)}">
+    <span class="lab">至</span><input type="date" data-f="until" value="${esc(UI.until)}">
+    <button class="mini-btn" data-act="sp-quick" data-v="month">本月</button>
+    <button class="mini-btn" data-act="sp-quick" data-v="lastmonth">上月</button>
+    <button class="mini-btn" data-act="sp-quick" data-v="all">全部</button>
+    <label class="mini-lab" style="white-space:nowrap"><input type="checkbox" data-act="sp-archived" ${UI.showArchived?'checked':''}> 显示已归档</label>
+    <span class="push"></span><button class="pri" data-act="sp-csv">导出当前表 CSV</button>
+  </div>
+  <div class="tabs2">${tabs.map(function(t){
+    return `<button class="${UI.statTab===t[0]?'on':''}" data-act="sp-tab" data-v="${t[0]}">${t[1]}</button>`; }).join('')}</div>`];
+  if(UI.statTab==='group') html.push(groupSettleHTML());
+  else if(UI.statTab==='day') html.push(daySettleHTML());
+  else if(UI.statTab==='bill') html.push(billHTML());
+  else html.push(renderStatsAnalysis(statRows()));
+  $('#view-stats').innerHTML=html.join('');
+}
+function groupSettleHTML(){
+  var gs=groupSettleRows(UI.since,UI.until), ds=dayEmpSums(UI.since,UI.until);
+  var tP=0,tM=0,tL=0,tDayW=0;
+  gs.forEach(function(r){ tP+=r.pieceWage; tM+=r.miscFee; tL+=r.loanWage; });
+  ds.forEach(function(d){ tDayW+=d.wage; });
+  var any=gs.length||ds.length;
+  var bodyRows=gs.map(function(r){
+    return `<tr><td data-label="计件班组/日工"><span class="badge b-piece">班组</span> <b>${esc(r.g.name)}</b><div class="muted">${esc(wsName(r.g.wid))}</div></td>
+      <td data-label="计件工资" class="num">¥${n2(r.pieceWage)}</td>
+      <td data-label="借调费(参考)" class="num">¥${n2(r.loanWage)}</td>
+      <td data-label="杂工费" class="num">¥${n2(r.miscFee)}</td>
+      <td data-label="实发合计" class="num"><b>¥${n2(r.total)}</b></td></tr>`;
+  }).join('') + ds.map(function(d){
+    return `<tr><td data-label="计件班组/日工"><span class="badge b-day">日工</span> <b>${esc(d.e.name)}</b><div class="muted">${esc(d.e.code)}　${esc(wsName(d.e.wid))}</div></td>
+      <td data-label="计件工资" class="num">—</td>
+      <td data-label="借调费(参考)" class="num">¥${n2(d.loanWage)}</td>
+      <td data-label="杂工费" class="num">—</td>
+      <td data-label="实发合计" class="num"><b>¥${n2(d.wage)}</b></td></tr>`;
+  }).join('');
+  return any? `<div class="note"><b>计件工单挂在哪个组，全部参与人员（本组、其他组计件工、日工）的计件工资都计入订单所在组</b>，不随人员归属分配；非本组人员产出列入「借调费(参考)」。组实发＝计件工资＋杂工费，日工按个人应发。借调费为参考列，不参与实发加总；日工逐日明细见「日工结算」。</div>
+  <div class="tw"><table class="grid"><thead><tr>
+    <th>计件班组/日工</th><th class="num">计件工资</th><th class="num">借调费(参考)</th><th class="num">杂工费</th><th class="num">实发合计</th>
+  </tr></thead><tbody>${bodyRows}</tbody>
+  <tr class="sumrow"><td>合计（公司应发）</td><td class="num">¥${n2(tP)}</td><td class="num">¥${n2(tL)}<div class="muted">参考</div></td>
+    <td class="num">¥${n2(tM)}</td><td class="num"><b>¥${n2(tP+tM+tDayW)}</b></td></tr>
+  </table></div>` : `<div class="empty">当前周期没有计件班组 / 日工结算数据</div>`;
+}
+function daySettleHTML(){
+  var rows=daySettleRows(UI.since,UI.until);
+  return rows.length? `<div class="note">同一天工时合并、扣减借调工时后再计加班。<b>日工实发＝日工工资</b>，对个人发放；"借调计件工资"由计件班组内部结算，不计入公司应发。</div>
+  <div class="tw"><table class="grid"><thead><tr>
+    <th>日期</th><th>姓名</th><th>车间</th><th class="num">出勤工时</th><th class="num">借调工时</th>
+    <th class="num">计费工时</th><th class="num">加班工时</th><th class="num">日工工资</th><th class="num">借调计件工资(参考)</th><th class="num">实发</th>
+  </tr></thead><tbody>${rows.map(function(m){
+    return `<tr><td data-label="日期">${esc(m.date)}</td>
+      <td data-label="姓名"><b>${esc(m.e.name)}</b><div class="muted">${esc(m.e.code)}</div></td>
+      <td data-label="车间">${esc(wsName(m.e.wid))}</td>
+      <td data-label="出勤" class="num">${n2(m.totalH)}</td>
+      <td data-label="借调" class="num">${n2(m.loanH)}</td>
+      <td data-label="计费" class="num">${n2(m.chargeH)}</td>
+      <td data-label="加班" class="num">${n2(m.ot)}</td>
+      <td data-label="日工工资" class="num">¥${n2(m.wage)}</td>
+      <td data-label="借调计件" class="num">¥${n2(m.loanWage)}</td>
+      <td data-label="实发" class="num"><b>¥${n2(m.wage)}</b></td></tr>`;
+  }).join('')}</tbody></table></div>` : `<div class="empty">当前周期没有日工结算数据</div>`;
+}
+function billHTML(){
+  var rows=wageBillRows(UI.since,UI.until);
+  if(!rows.length) return `<div class="empty">当前周期暂无已完工计件工单</div>`;
+  // 按订单归属班组分组（非按组分配的订单归入「未指定班组」）
+  var groups={};
+  rows.forEach(function(m){
+    var key=(m.o.belongType==='group'&&m.o.belongId)?m.o.belongId:'__none';
+    if(!groups[key]) groups[key]={ list:[] };
+    groups[key].list.push(m);
+  });
+  var tbody='', gGood=0, gWage=0;
+  Object.keys(groups).forEach(function(key){
+    var list=groups[key].list, subGood=0, subWage=0, cnt=list.length;
+    var title=key==='__none'?'未指定班组'
+      : (function(){ var g=findGroup(key); return (g?esc(g.name)+'（'+esc(wsName(g.wid))+'）':'已删除班组'); })();
+    tbody+=`<tr><td colspan="8" style="background:#e6f4ff;font-weight:600">👥 ${title}<span class="muted" style="font-weight:400">　完工 ${cnt} 单</span></td></tr>`;
+    list.forEach(function(m){
+      var o=m.o;
+      subGood+=m.good; subWage+=m.wage;
+      tbody+=`<tr><td data-label="完成日期">${esc(m.doneOn)}</td>
+        <td data-label="工单号">${esc(o.no)}</td>
+        <td data-label="成品编码">${esc(o.productCode||'')}</td>
+        <td data-label="产品名称">${esc(o.name||'')}</td>
+        <td data-label="规格型号">${esc(o.spec||'')}</td>
+        <td data-label="合格产出" class="num">${n0(m.good)}</td>
+        <td data-label="单价" class="num">¥${n2(m.rate)}</td>
+        <td data-label="工资合计" class="num"><b>¥${n2(m.wage)}</b></td></tr>`;
+    });
+    gGood+=subGood; gWage+=subWage;
+    tbody+=`<tr class="sumrow"><td>${title} 小计</td><td colspan="4">${cnt} 单</td>
+      <td class="num">${n0(subGood)}</td><td class="num">—</td><td class="num"><b>¥${n2(subWage)}</b></td></tr>`;
+  });
+  return `<div class="note">以<b>班组为单位</b>统计当前周期已完工计件工单：组内逐单明细＋组小计；工资合计＝合格产出 × 计件单价，完成日期取工单改完工的日期。</div>
+  <div class="tw"><table class="grid"><thead><tr>
+    <th>完成日期</th><th>工单号</th><th>成品编码</th><th>产品名称</th><th>规格型号</th>
+    <th class="num">合格产出</th><th class="num">计件单价</th><th class="num">工资合计</th>
+  </tr></thead><tbody>${tbody}</tbody>
+  <tr class="sumrow"><td>总计</td><td colspan="4">${rows.length} 单</td>
+    <td class="num">${n0(gGood)}</td><td class="num">—</td><td class="num"><b>¥${n2(gWage)}</b></td></tr>
+  </table></div>`;
+}
+function renderStatsAnalysis(rows){
+  var tot={ qty:0, good:0, defect:0, hours:0, eff:0, wageP:0, wageD:0, people:{} };
+  rows.forEach(function(r){
+    tot.qty+=r.qty; tot.good+=r.good; tot.defect+=r.defect; tot.hours+=r.hours; tot.eff+=r.eff;
+    if(r.e.type==='piece') tot.wageP+=r.wage; else tot.wageD+=r.wage;
+    tot.people[r.e.id]=1;
+  });
+  var wage=tot.wageP+tot.wageD;
+  var headN=Object.keys(tot.people).length;
+  var reach;
+  if(UI.soid){ var oo=findOrder(UI.soid); reach = oo? (tot.good/num(oo.planQty)) : 0; }
+  else { // 涉及工单的计划总量
+    var planSet={}; rows.forEach(function(r){ planSet[r.o.id]=num(r.o.planQty); });
+    var plan=0; Object.keys(planSet).forEach(function(k){ plan+=planSet[k]; });
+    reach = plan>0? tot.good/plan : 0;
+  }
+  var html=[];
+  html.push(`<div class="stats">
+    <div class="stat g"><div class="k">合格产量</div><div class="v">${n0(tot.good)}</div><div class="s">报工 ${n0(tot.qty)}　不良 ${n0(tot.defect)}</div></div>
+    <div class="stat"><div class="k">良品率</div><div class="v">${tot.qty? Math.round(tot.good/tot.qty*1000)/10 : 100}%</div><div class="s">合格 ÷ 报工</div></div>
+    <div class="stat a"><div class="k">出勤 / 有效工时</div><div class="v">${n0(tot.hours)}<span style="font-size:13px"> / ${n0(tot.eff)}</span></div><div class="s">工时利用率 ${tot.hours? Math.round(tot.eff/tot.hours*100):0}%</div></div>
+    <div class="stat"><div class="k">工单达成率</div><div class="v">${Math.round(reach*100)}%</div><div class="s">合格 ÷ 计划</div></div>
+    <div class="stat c"><div class="k">计件工资</div><div class="v">¥${n0(tot.wageP)}</div><div class="s">占人工成本 ${wage?Math.round(tot.wageP/wage*100):0}%</div></div>
+    <div class="stat p"><div class="k">日工工资</div><div class="v">¥${n0(tot.wageD)}</div><div class="s">占人工成本 ${wage?Math.round(tot.wageD/wage*100):0}%</div></div>
+    <div class="stat r"><div class="k">人工成本合计</div><div class="v">¥${n0(wage)}</div><div class="s">${headN} 人参与</div></div>
+    <div class="stat"><div class="k">单件人工成本</div><div class="v">¥${n2(tot.good? wage/tot.good : 0)}</div><div class="s">人工成本 ÷ 合格产量</div></div>
+  </div>`);
+  if(!rows.length){
+    html.push(`<div class="card"><div class="empty">当前条件下没有报工数据。先在「工单排产」里派工并录入报工，或放宽统计周期。</div></div>`);
+    return html.join(''); // 交由 renderStats 统一写入，避免被外层覆盖成空白
+  }
+  /* --- 图表 --- */
+  var byWs=groupSum(rows, function(r){ return wsName(r.o.wid); });
+  var byDay=groupSum(rows, function(r){ return r.date; }).sort(function(a,b){ return a.key.localeCompare(b.key); });
+  var byEmpPiece=groupSum(rows.filter(function(r){ return r.e.type==='piece'; }), function(r){ return r.e.name; });
+  var byEmpDay=groupSum(rows.filter(function(r){ return r.e.type==='day'; }), function(r){ return r.e.name; });
+  byEmpPiece.forEach(function(m){ m.val = m.eff>0? m.good/m.eff : 0; });
+  byEmpDay.forEach(function(m){ m.val = m.hours>0? m.eff/m.hours*100 : 0; });
+  byEmpPiece.sort(function(a,b){ return b.val-a.val; });
+  byEmpDay.sort(function(a,b){ return b.val-a.val; });
+
+  html.push(`<div class="chart-grid">
+    <div class="chart-box"><h4>各车间人工成本构成 <small>计件 vs 日工</small></h4>${svgStack(byWs, ['#2e5395','#8b5cf6'], ['计件工资','日工工资'])}</div>
+    <div class="chart-box"><h4>每日合格产量与人工成本 <small>柱=产量　线=成本</small></h4>${svgCombo(byDay)}</div>
+    <div class="chart-box"><h4>计件工效率排行 <small>件 / 有效工时</small></h4>${svgHBar(byEmpPiece.slice(0,10), function(v){ return n2(v); }, '#1a7f4e')}</div>
+    <div class="chart-box"><h4>日工工时利用率排行 <small>有效 ÷ 出勤</small></h4>${svgHBar(byEmpDay.slice(0,10), function(v){ return n2(v)+'%'; }, '#0e7490')}</div>
+  </div>`);
+
+  /* --- 人员汇总 --- */
+  var empRows=groupSum(rows, function(r){ return r.e.id; });
+  empRows.forEach(function(m){ var e=findEmp(m.key); m.label=e?e.name:m.key; m.emp=e; });
+  empRows.sort(function(a,b){ return b.wage-a.wage; });
+  html.push(`<div class="card"><h2><span>人员工资与效率明细</span><span class="sub">共 ${empRows.length} 人　人工成本合计 ¥${n0(wage)}</span></h2>
+   <div class="pad"><div class="tw"><table class="grid"><thead><tr>
+     <th>姓名 / 工号</th><th>车间 / 分组</th><th>类型</th><th class="num">报工</th><th class="num">合格</th>
+     <th class="num">良品率</th><th class="num">出勤工时</th><th class="num">有效工时</th><th class="num">利用率</th>
+     <th class="num">效率</th><th class="num">工资合计</th><th class="num">单件成本</th>
+   </tr></thead><tbody>${empRows.map(function(m){
+     var e=m.emp||{code:'',type:'piece'};
+     return `<tr><td data-label="姓名"><b>${esc(m.label)}</b><div class="muted">${esc(e.code||'')}</div></td>
+      <td data-label="车间/分组">${esc(wsName(e.wid))}<div class="muted">${esc(grpName(e.gid))}</div></td>
+      <td data-label="类型"><span class="badge ${e.type==='piece'?'b-piece':'b-day'}">${e.type==='piece'?'计件':'日工'}</span></td>
+      <td data-label="报工" class="num">${n0(m.qty)}</td><td data-label="合格" class="num"><b>${n0(m.good)}</b></td>
+      <td data-label="良品率" class="num">${m.qty?Math.round(m.good/m.qty*1000)/10:100}%</td>
+      <td data-label="出勤" class="num">${n0(m.hours)}</td><td data-label="有效" class="num">${n0(m.eff)}</td>
+      <td data-label="利用率" class="num"><div class="barwrap"><span class="bar"><i class="${m.hours&&m.eff/m.hours>0.85?'g':'a'}" style="width:${Math.min(100,m.hours?m.eff/m.hours*100:0)}%"></i></span><span class="pct">${m.hours?Math.round(m.eff/m.hours*100):0}%</span></div></td>
+      <td data-label="效率" class="num">${e.type==='piece'? (m.eff? n2(m.good/m.eff)+' 件/h':'—') : '—'}</td>
+      <td data-label="工资" class="num"><b>¥${n0(m.wage)}</b></td>
+      <td data-label="单件成本" class="num">${m.good? '¥'+n2(m.wage/m.good) : '—'}</td></tr>`;
+   }).join('')}</tbody>
+   <tr class="sumrow"><td>合计</td><td></td><td></td><td class="num">${n0(tot.qty)}</td><td class="num">${n0(tot.good)}</td>
+     <td class="num">${tot.qty?Math.round(tot.good/tot.qty*1000)/10:100}%</td><td class="num">${n0(tot.hours)}</td><td class="num">${n0(tot.eff)}</td>
+     <td class="num">${tot.hours?Math.round(tot.eff/tot.hours*100):0}%</td><td class="num">${tot.eff? n2(tot.good/tot.eff)+' 件/h':'—'}</td>
+     <td class="num">¥${n0(wage)}</td><td class="num">${tot.good?'¥'+n2(wage/tot.good):'—'}</td></tr>
+   </table></div></div></div>`);
+
+  /* --- 工单成本 --- */
+  var ordRows=groupSum(rows, function(r){ return r.o.id; });
+  ordRows.forEach(function(m){ var o=findOrder(m.key); m.label=o?o.no:'?'; m.o=o; });
+  ordRows.sort(function(a,b){ return b.wage-a.wage; });
+  html.push(`<div class="card"><h2><span>工单人工成本汇总</span></h2>
+   <div class="pad"><div class="tw"><table class="grid"><thead><tr>
+     <th>工单号</th><th>产品</th><th>状态</th><th class="num">计划</th><th class="num">合格产出</th><th>达成</th>
+     <th class="num">投入工时</th><th class="num">计件工资</th><th class="num">日工工资</th><th class="num">人工成本</th><th class="num">单件成本</th>
+   </tr></thead><tbody>${ordRows.map(function(m){
+     var o=m.o||{};
+     var rc=num(o.planQty)>0? m.good/num(o.planQty):0;
+     return `<tr><td data-label="工单号"><b>${esc(m.label)}</b></td><td data-label="产品">${esc(o.name||'')}</td>
+      <td data-label="状态"><span class="badge ${ST_CLS[o.status]||'b-idle'}">${ST_NAME[o.status]||''}</span></td>
+      <td data-label="计划" class="num">${n0(o.planQty)}</td><td data-label="产出" class="num">${n0(m.good)}</td>
+      <td data-label="达成"><div class="barwrap"><span class="bar"><i class="${rc>=1?'g':(rc<0.5?'r':'a')}" style="width:${Math.min(100,rc*100)}%"></i></span><span class="pct">${Math.round(rc*100)}%</span></div></td>
+      <td data-label="工时" class="num">${n0(m.hours)}</td><td data-label="计件" class="num">¥${n0(m.wageP)}</td>
+      <td data-label="日工" class="num">¥${n0(m.wageD)}</td><td data-label="成本" class="num"><b>¥${n0(m.wage)}</b></td>
+      <td data-label="单件成本" class="num">${m.good?'¥'+n2(m.wage/m.good):'—'}</td></tr>`;
+   }).join('')}</tbody></table></div></div></div>`);
+  return html.join('');
+}
+/* ---------- SVG 图表 ---------- */
+function svgAxis(w){ return 'stroke="#e3e8ef" stroke-width="1"'; }
+function svgStack(items, colors, legends){
+  if(!items.length) return '<div class="empty">暂无数据</div>';
+  var rowH=30, padL=110, padR=86, w=520, gap=8;
+  var max=0; items.forEach(function(m){ if(m.wage>max) max=m.wage; });
+  if(max<=0) max=1;
+  var h=items.length*rowH+10;
+  var bw=w-padL-padR;
+  var svg=[`<svg class="ch" viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMinYMin meet">`];
+  items.forEach(function(m,i){
+    var y=i*rowH+6;
+    var x1=padL + bw*m.wageP/max, x2=padL + bw*m.wage/max;
+    svg.push(`<text x="${padL-8}" y="${y+13}" text-anchor="end" font-size="12" fill="#24314d">${esc(m.label.slice(0,7))}</text>`);
+    svg.push(`<rect x="${padL}" y="${y}" width="${Math.max(0,bw*m.wage/max)}" height="17" fill="${colors[0]}" opacity=".18" rx="2"/>`);
+    svg.push(`<rect x="${padL}" y="${y}" width="${Math.max(0,bw*m.wageP/max)}" height="17" fill="${colors[0]}" rx="2"/>`);
+    svg.push(`<rect x="${x1}" y="${y}" width="${Math.max(0,x2-x1)}" height="17" fill="${colors[1]}" rx="2"/>`);
+    svg.push(`<text x="${padL+bw+8}" y="${y+13}" font-size="11.5" fill="#6b7280">¥${n0(m.wage)}　${n0(m.good)}件</text>`);
+    void padR;
+  });
+  svg.push('</svg>');
+  svg.push(`<div class="legend">${legends.map(function(l,i){ return `<span><i style="background:${colors[i]}"></i>${l}</span>`; }).join('')}</div>`);
+  return svg.join('');
+}
+function svgHBar(items, fmtVal, color){
+  if(!items.length) return '<div class="empty">暂无数据</div>';
+  var rowH=26, w=520, padL=76, padR=76;
+  var max=0; items.forEach(function(m){ if(m.val>max) max=m.val; });
+  if(max<=0) max=1;
+  var bw=w-padL-padR, h=items.length*rowH+6;
+  var svg=[`<svg class="ch" viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMinYMin meet">`];
+  items.forEach(function(m,i){
+    var y=i*rowH+4;
+    svg.push(`<text x="${padL-8}" y="${y+13}" text-anchor="end" font-size="12" fill="#24314d">${esc(m.label.slice(0,5))}</text>`);
+    svg.push(`<rect x="${padL}" y="${y}" width="${bw}" height="15" fill="#f1f4f8" rx="2"/>`);
+    svg.push(`<rect x="${padL}" y="${y}" width="${Math.max(1,bw*m.val/max)}" height="15" fill="${color}" opacity="${0.45+0.55*(i<3?1:0.6)}" rx="2"/>`);
+    svg.push(`<text x="${padL+bw+6}" y="${y+13}" font-size="11.5" fill="#374151">${fmtVal(m.val)}</text>`);
+  });
+  svg.push('</svg>');
+  return svg.join('');
+}
+function svgCombo(days){
+  if(!days.length) return '<div class="empty">暂无数据</div>';
+  var w=560, h=190, padL=44, padB=26, padT=12, padR=40;
+  var iw=w-padL-padR, ih=h-padT-padB;
+  var maxQ=0, maxW=0;
+  days.forEach(function(d){ if(d.good>maxQ) maxQ=d.good; if(d.wage>maxW) maxW=d.wage; });
+  if(maxQ<=0) maxQ=1; if(maxW<=0) maxW=1;
+  var step=days.length>1? iw/days.length : iw;
+  var bw=Math.max(4, Math.min(26, step*0.55));
+  var svg=[`<svg class="ch" viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMinYMin meet">`];
+  // 网格
+  for(var g=0;g<=3;g++){
+    var y=padT+ih*g/3;
+    svg.push(`<line x1="${padL}" y1="${y}" x2="${w-padR}" y2="${y}" ${svgAxis()}/>`);
+  }
+  var pts=[];
+  days.forEach(function(d,i){
+    var x=padL+step*i+step/2;
+    var bh=ih*d.good/maxQ;
+    svg.push(`<rect x="${x-bw/2}" y="${padT+ih-bh}" width="${bw}" height="${Math.max(1,bh)}" fill="#2e5395" opacity=".75" rx="2"/>`);
+    pts.push([x, padT+ih-ih*d.wage/maxW]);
+    if(days.length<=10 || i%Math.ceil(days.length/8)===0)
+      svg.push(`<text x="${x}" y="${h-8}" text-anchor="middle" font-size="10" fill="#6b7280">${d.key.slice(5)}</text>`);
+  });
+  svg.push(`<polyline points="${pts.map(function(p){ return p[0]+','+p[1]; }).join(' ')}" fill="none" stroke="#b45f06" stroke-width="2"/>`);
+  pts.forEach(function(p){ svg.push(`<circle cx="${p[0]}" cy="${p[1]}" r="2.6" fill="#b45f06"/>`); });
+  svg.push(`<text x="4" y="${padT+8}" font-size="10" fill="#6b7280">产量峰值 ${n0(maxQ)}</text>`);
+  svg.push(`<text x="${w-4}" y="${padT+8}" text-anchor="end" font-size="10" fill="#b45f06">成本峰值 ¥${n0(maxW)}</text>`);
+  svg.push('</svg>');
+  svg.push(`<div class="legend"><span><i style="background:#2e5395"></i>合格产量（件）</span><span><i style="background:#b45f06"></i>人工成本（元）</span></div>`);
+  return svg.join('');
+}
+/* ==================== 屏④ 数据管理 ==================== */
+function renderData(){
+  var size=0; try{ size=(localStorage.getItem(LS)||'').length; }catch(e){}
+  var html=[];
+  html.push(`<div class="stats">
+    <div class="stat"><div class="k">人员</div><div class="v">${S.employees.length}</div><div class="s">${S.workshops.length} 车间 / ${S.groups.length} 分组</div></div>
+    <div class="stat"><div class="k">工单</div><div class="v">${S.orders.length}</div><div class="s">派工 ${S.assigns.length} 条</div></div>
+    <div class="stat"><div class="k">报工记录</div><div class="v">${S.reports.length}</div><div class="s">占用约 ${(size/1024).toFixed(1)} KB</div></div>
+    <div class="stat g"><div class="k">最近备份</div><div class="v" style="font-size:15px">${snapList()[0]?snapList()[0].date:'无'}</div><div class="s">每日自动快照，保留 7 天</div></div>
+  </div>`);
+  html.push(`<div class="card"><h2>备份与恢复</h2><div class="pad">
+    <div class="rowflex">
+      <button class="pri" data-act="export-json">⬇ 导出全部数据（JSON）</button>
+      <button data-act="import-json">⬆ 导入 JSON 备份</button>
+      <input type="file" id="file-json" accept=".json,application/json" style="display:none">
+    </div>
+    <div class="note" style="margin:10px 0 0">数据保存在本机浏览器（localStorage），不上传服务器。换设备或清缓存前请先导出 JSON。</div>
+    <div class="tw" style="margin-top:10px"><table class="grid"><thead><tr><th>自动快照</th><th>日期</th><th>操作</th></tr></thead><tbody>
+      ${snapList().map(function(s){ return `<tr><td data-label="快照">自动备份</td><td data-label="日期">${esc(s.date)}</td>
+        <td data-label="操作"><button class="mini-btn" data-act="restore-snap" data-v="${s.key}">恢复此版</button></td></tr>`; }).join('')
+        || '<tr><td colspan="3" class="muted">暂无快照</td></tr>'}
+      ${localStorage.getItem(LS_PREV)? `<tr><td data-label="快照">上一次修改前</td><td data-label="日期">—</td>
+        <td data-label="操作"><button class="mini-btn" data-act="restore-snap" data-v="${LS_PREV}">恢复此版</button></td></tr>`:''}
+    </tbody></table></div></div></div>`);
+  html.push(`<div class="card"><h2>计价规则</h2><div class="pad">
+    <div class="form-grid">
+      ${fld('标准日工时（小时）', `<input type="number" step="0.5" id="set-h" value="${n2(S.settings.stdHours)}">`)}
+      ${fld('超出部分加班倍数', `<input type="number" step="0.1" id="set-ot" value="${n2(S.settings.otRate)}">`)}
+      ${fld('杂工统一时薪（元/h）', `<input type="number" step="0.5" id="set-misc" value="${n2(S.settings.miscRate)}">`)}
+      <div><button class="pri" data-act="save-settings">保存规则</button></div>
+    </div>
+    <div class="note" style="margin:10px 0 0">
+      · 计件工：<b>工资 =（报工数量 − 不良）× 计件单价</b>，单价默认继承工单单价；做日工/杂活按<b>杂工统一时薪</b>计，随班组结算<br>
+      · 日工：按<b>自然日合并</b>工时，<b>工资 = 日薪 ÷ 标准工时 ×（标准内工时 + 加班工时 × 倍数）</b>；借调做计件的工时相应扣减，计件工资由班组内部结算<br>
+      · 结算口径：计件班组按<b>组实发</b>（计件工资 + 杂工费），日工按<b>个人应发</b>，详见「③效率与工资」<br>
+      · 效率指标：达成率 = 合格 ÷ 计划产量；工时利用率 = 有效工时 ÷ 出勤工时；计件效率 = 合格 ÷ 有效工时（件/小时）
+    </div></div></div>`);
+  html.push(`<div class="card"><h2>导出与清理</h2><div class="pad">
+    <div class="rowflex">
+      <button data-act="csv-staff">⬇ 通讯录 CSV</button>
+      <button data-act="csv-wage">⬇ 工资表 CSV</button>
+      <button data-act="csv-report">⬇ 报工明细 CSV</button>
+      <button data-act="csv-order">⬇ 工单台账 CSV</button>
+      <button data-act="csv-misc">⬇ 杂工登记 CSV</button>
+      <button data-act="csv-gsettle">⬇ 班组结算 CSV</button>
+      <button data-act="csv-dsettle">⬇ 日工结算 CSV</button>
+      <span class="push"></span>
+      <button data-act="load-seed">载入示例数据</button>
+      <button class="danger" data-act="wipe">清空全部数据</button>
+    </div></div></div>`);
+  $('#view-data').innerHTML=html.join('');
+}
+function download(name, content, mime){
+  var m=mime||'text/plain';
+  if(/text|json|csv/i.test(m)) m+=';charset=utf-8'; // 文本类型才加字符集，二进制保持纯净
+  var blob=new Blob([content], { type:m });
+  var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function(){ URL.revokeObjectURL(a.href); },1500);
+}
+function csv(rows){ return '\ufeff' + rows.map(function(r){ return r.map(function(c){
+  var s=String(c==null?'':c); return /[",\n]/.test(s)? '"'+s.replace(/"/g,'""')+'"' : s; }).join(','); }).join('\r\n'); }
+function exportCSV(kind){
+  if(kind==='staff'){
+    download('通讯录.csv', csv([['工号','姓名','岗位','车间','分组','用工类型','计件单价','日薪','电话','状态']]
+      .concat(S.employees.map(function(e){ return [e.code,e.name,e.post||'',wsName(e.wid),grpName(e.gid),
+        e.type==='piece'?'计件':'日工', e.type==='piece'?e.rate:'', e.type==='day'?e.dayRate:'', e.phone||'', e.status]; }))));
+  } else if(kind==='wage'){
+    var rows=statRows();
+    var map={};
+    rows.forEach(function(r){
+      var k=r.e.id; if(!map[k]) map[k]={ e:r.e, good:0, hours:0, eff:0, wage:0, qty:0 };
+      map[k].good+=r.good; map[k].qty+=r.qty; map[k].hours+=r.hours; map[k].eff+=r.eff; map[k].wage+=r.wage;
+    });
+    download('工资表_'+(UI.since||'全部')+'_'+(UI.until||today())+'.csv', csv([['工号','姓名','车间','分组','用工类型','单价/日薪','报工数','合格数','出勤工时','有效工时','工资合计']]
+      .concat(Object.keys(map).map(function(k){ var m=map[k]; var e=m.e;
+        return [e.code,e.name,wsName(e.wid),grpName(e.gid), e.type==='piece'?'计件':'日工',
+          e.type==='piece'?e.rate:e.dayRate, m.qty, m.good, n2(m.hours), n2(m.eff), n2(m.wage)]; }))));
+  } else if(kind==='report'){
+    var rs=statRows();
+    download('报工明细_'+today()+'.csv', csv([['日期','工单号','产品','车间','工号','姓名','类型','单价','报工数','不良','合格','出勤工时','有效工时','当日工资']]
+      .concat(rs.map(function(r){ return [r.date, r.o.no, r.o.name, wsName(r.o.wid), r.e.code, r.e.name,
+        r.e.type==='piece'?'计件':'日工', r.e.type==='piece'?n2(r.rate):'', n2(r.qty), n2(r.defect), n2(r.good), n2(r.hours), n2(r.eff), n2(r.wage)]; }))));
+  } else if(kind==='order'){
+    download('工单台账_'+today()+'.csv', csv([['工单号','产品','规格','车间','状态','计划数量','单位','已完成','达成率','交期','派工人数','工时','计件工资','日工工资','人工成本','单件成本']]
+      .concat(S.orders.map(function(o){ var s=orderStat(o);
+        return [o.no,o.name,o.spec||'',wsName(o.wid),ST_NAME[o.status],n0(o.planQty),o.unit||'件',n0(s.good),
+          Math.round(s.reach*100)+'%',o.due||'',s.heads,n2(s.hours),n2(s.wagePiece),n2(s.wageDay),n2(s.wage),n2(s.unitCost)]; }))));
+  } else if(kind==='misc'){
+    download('杂工登记_'+today()+'.csv', csv([['日期','工号','姓名','所在计件组','工时','时薪','费用','备注']]
+      .concat(S.misc.map(function(m){
+        var e=findEmp(m.eid)||{name:'',code:'',gid:''};
+        return [m.date,e.code,e.name,grpName(e.gid),n2(m.hours),n2(S.settings.miscRate),
+          n2(num(m.hours)*num(S.settings.miscRate)),m.note||''];
+      }))));
+  } else if(kind==='gsettle'||kind==='dsettle'){
+    var oldTab=UI.statTab;
+    UI.statTab=kind==='gsettle'?'group':'day';
+    exportSettleCSV();
+    UI.statTab=oldTab;
+  }
+  toast('已导出');
+}
+// 统计页：导出当前标签对应的结算表
+function exportSettleCSV(){
+  if(UI.statTab==='group'){
+    var gs=groupSettleRows(UI.since,UI.until), dds=dayEmpSums(UI.since,UI.until);
+    var out=[['计件班组/日工','计件工资','借调费(参考)','杂工费','实发合计']];
+    gs.forEach(function(r){ out.push(['班组·'+r.g.name,n2(r.pieceWage),n2(r.loanWage),n2(r.miscFee),n2(r.total)]); });
+    dds.forEach(function(d){ out.push(['日工·'+d.e.name,'',n2(d.loanWage),'',n2(d.wage)]); });
+    download('计件班组日工结算_'+today()+'.csv', csv(out));
+  } else if(UI.statTab==='day'){
+    var ds=daySettleRows(UI.since,UI.until);
+    download('日工结算_'+today()+'.csv', csv([['日期','工号','姓名','车间','出勤工时','借调工时','计费工时','加班工时','日工工资','借调计件工资(参考)','实发']]
+      .concat(ds.map(function(m){ return [m.date,m.e.code,m.e.name,wsName(m.e.wid),n2(m.totalH),n2(m.loanH),n2(m.chargeH),n2(m.ot),n2(m.wage),n2(m.loanWage),n2(m.wage)]; }))));
+  } else if(UI.statTab==='bill'){
+    var bs=wageBillRows(UI.since,UI.until);
+    var bm={};
+    bs.forEach(function(m){
+      var key=(m.o.belongType==='group'&&m.o.belongId)?m.o.belongId:'__none';
+      if(!bm[key]) bm[key]={list:[]};
+      bm[key].list.push(m);
+    });
+    var bout=[['完成日期','工单号','成品编码','产品名称','规格型号','合格产出','计件单价','工资合计']];
+    Object.keys(bm).forEach(function(key){
+      var list=bm[key].list, sg=0, sw2=0, title;
+      title=key==='__none'?'未指定班组':(grpName(key)+'（'+wsName((findGroup(key)||{wid:''}).wid)+'）');
+      bout.push(['【'+title+'】完工 '+list.length+' 单','','','','','','','']);
+      list.forEach(function(m){
+        sg+=m.good; sw2+=m.wage;
+        bout.push([m.doneOn,m.o.no,m.o.productCode||'',m.o.name||'',m.o.spec||'',m.good,n2(m.rate),n2(m.wage)]);
+      });
+      bout.push([title+' 小计','','','','',sg,'',n2(sw2)]);
+    });
+    download('计件班组统计报表_'+today()+'.csv', csv(bout));
+  } else { exportCSV('report'); return; }
+  toast('已导出');
+}
+function restore(key){
+  var t=parse(localStorage.getItem(key));
+  if(!t){ toast('备份已损坏'); return; }
+  confirmBox('恢复到 '+(key===LS_PREV?'上一次修改前':key.slice(SNAP.length))+' 的版本？当前数据会先备份一次。', function(){
+    try{ localStorage.setItem(LS_PREV, JSON.stringify(S)); }catch(e){}
+    S=normalize(t); save(); render(); toast('已恢复');
+  });
+}
+/* ==================== 事件 ==================== */
+var FIELD_MAP={ q:'q', type:'type', status:'status', sort:'sort', oq:'oq', owid:'owid', ostatus:'ostatus',
+  since:'since', until:'until', swid:'swid', sgid:'sgid', stype:'stype', soid:'soid' };
+document.addEventListener('change', function(ev){
+  var t=ev.target;
+  if(t.classList && t.classList.contains('pk-ck')){ updatePickCnt(); return; }
+  var f=t.getAttribute && t.getAttribute('data-f');
+  if(f && FIELD_MAP[f]){ UI[FIELD_MAP[f]]=t.value; if(f==='swid') UI.sgid=''; if(f==='wid'||f==='q'||f==='type'||f==='status'||f==='sort') UI.gid=UI.gid; render(); }
+});
+document.addEventListener('input', function(ev){
+  var t=ev.target, f=t.getAttribute && t.getAttribute('data-f');
+  if(f==='q'||f==='oq'||f==='pkq'){ UI[FIELD_MAP[f]]=t.value; clearTimeout(t._tm); t._tm=setTimeout(render,250); }
+});
+$$('.navbtn').forEach(function(b){ b.addEventListener('click', function(){ go(b.getAttribute('data-nav')); }); });
+$('#btn-quick-report').addEventListener('click', quickReport);
+document.addEventListener('click', function(ev){
+  var el=ev.target.closest ? ev.target.closest('[data-act]') : null;
+  if(!el) return;
+  var act=el.getAttribute('data-act'), v=el.getAttribute('data-v');
+  try{ handle(act, v, el); }catch(e){ console.error(e); toast('操作失败：'+e.message); }
+});
+function handle(act, v, el){
+  switch(act){
+    case 'modal-close': closeModal(); break;
+    /* --- 通讯录 --- */
+    case 'rw': UI.wid=v; UI.gid=''; render(); break;
+    case 'rg': UI.gid=v; render(); break;
+    case 'emp-new': empForm(null); break;
+    case 'emp-edit': empForm(findEmp(v)); break;
+    case 'emp-save': saveEmp(v); break;
+    case 'emp-del': {
+      var e=findEmp(v); if(!e) break;
+      var as=S.assigns.filter(function(a){ return a.eid===v; });
+      confirmBox(`确定删除「${esc(e.name)}」？${as.length?`该人员有 ${as.length} 条派工记录，删除后相关报工将无法追溯到人。`:''}`, function(){
+        S.employees=S.employees.filter(function(x){ return x.id!==v; });
+        S.assigns=S.assigns.filter(function(a){ return a.eid!==v; });
+        S.reports=S.reports.filter(function(r){ return S.assigns.some(function(a){ return a.id===r.aid; }); });
+        save(true); render(); toast('已删除');
+      });
+      break; }
+    case 'emp-assign': pickOrderForEmp(v); break;
+    case 'emp-status': {
+      var es=findEmp(v); if(!es) break;
+      var next= es.status==='在岗'?'休假': es.status==='休假'?'离职':'在岗';
+      if(next==='离职'){
+        confirmBox('确定将「'+es.name+'」状态改为「离职」？离职后不再出现在派工名单中。', function(){
+          es.status='离职'; save(true); render(); toast('状态已更新');
+        });
+      } else { es.status=next; save(true); render(); toast('状态：'+next); }
+      break; }
+    case 'emp-batch': batchAssign(); break;
+    case 'mg-org': orgModal(); break;
+    case 'ws-new': {
+      var nm=$('#ws-name').value.trim(); if(!nm){ toast('请输入车间名称'); break; }
+      S.workshops.push({ id:uid('w'), name:nm }); save(true); closeModal(); orgModal(); render(); toast('已新增车间'); break; }
+    case 'ws-del': {
+      var cnt=S.employees.filter(function(x){ return x.wid===v; }).length;
+      confirmBox(`删除车间「${esc(wsName(v))}」？${cnt?`其下 ${cnt} 人将变为「未分配」。`:''}`, function(){
+        S.workshops=S.workshops.filter(function(w){ return w.id!==v; });
+        S.groups=S.groups.filter(function(g){ return g.wid!==v; });
+        S.employees.forEach(function(e){ if(e.wid===v){ e.wid=''; e.gid=''; } });
+        save(true); closeModal(); orgModal(); render(); toast('已删除');
+      }); break; }
+    case 'grp-add': case 'grp-new': {
+      var wid = act==='grp-new' ? v : $('#g-wid').value;
+      var gn = $('#g-name').value.trim();
+      var gtSel=$('#g-type');
+      var gt = gtSel?gtSel.value:'piece';
+      if(!gn){ $('#g-name').focus(); toast('请输入分组名称'); break; }
+      S.groups.push({ id:uid('g'), wid:wid, name:gn, type:gt }); save(true); $('#g-name').value=''; closeModal(); orgModal(); render(); toast('已新增分组'); break; }
+    case 'grp-del': {
+      var gc=S.employees.filter(function(x){ return x.gid===v; }).length;
+      confirmBox(`删除分组「${esc(grpName(v))}」？${gc?`其下 ${gc} 人将变为「未分组」。`:''}`, function(){
+        S.groups=S.groups.filter(function(g){ return g.id!==v; });
+        S.employees.forEach(function(e){ if(e.gid===v) e.gid=''; });
+        save(true); closeModal(); orgModal(); render(); toast('已删除');
+      }); break; }
+    /* --- 工单 --- */
+    case 'ord-new': orderForm(null); break;
+    case 'ord-import': importOrders(); break;
+    case 'misc-new': miscForm(null); break;
+    case 'misc-save': saveMisc(v); break;
+    case 'misc-del': {
+      var md=S.misc.filter(function(x){ return x.id===v; })[0];
+      if(!md) break;
+      confirmBox('删除这条杂工登记？', function(){
+        S.misc=S.misc.filter(function(x){ return x.id!==v; });
+        save(true); render(); toast('已删除');
+      }); break; }
+    case 'ord-edit': orderForm(findOrder(v)); break;
+    case 'ord-save': saveOrder(v); break;
+    case 'ord-assign': assignModal(v); break;
+    case 'ord-detail': detailModal(v); break;
+    case 'ord-report': batchReportModal(v); break;
+    case 'ord-status': {
+      var o=findOrder(v); if(!o) break;
+      openModal('修改状态 · '+o.no, `<div class="rowflex">${Object.keys(ST_NAME).map(function(k){
+        return `<button class="${o.status===k?'pri':''}" data-act="ost-set" data-v="${o.id}" data-k="${k}">${ST_NAME[k]}</button>`; }).join('')}</div>`,
+        `<button data-act="modal-close">关闭</button>`, {size:'sm'});
+      break; }
+    case 'ost-set': {
+      var oo=findOrder(v); if(oo){
+        var k=el.getAttribute('data-k');
+        oo.status=k; oo.doneOn = k==='done' ? today() : '';
+        save(true); closeModal(); render(); toast('状态已更新');
+      } break; }
+    case 'ord-del': {
+      var od=findOrder(v); if(!od) break;
+      confirmBox(`删除工单「${esc(od.no)} ${esc(od.name)}」？相关派工与报工记录会一并删除。`, function(){
+        var aids=S.assigns.filter(function(a){ return a.oid===v; }).map(function(a){ return a.id; });
+        S.orders=S.orders.filter(function(x){ return x.id!==v; });
+        S.assigns=S.assigns.filter(function(a){ return a.oid!==v; });
+        S.reports=S.reports.filter(function(r){ return aids.indexOf(r.aid)<0; });
+        save(true); render(); toast('已删除');
+      }); break; }
+    case 'ord-scan': {
+      var no=prompt('输入生产工单号（支持模糊匹配）：'); if(no===null) break;
+      no=no.trim(); if(!no) break;
+      UI.oq=no; UI.owid=''; UI.ostatus=''; go('order');
+      var hit=S.orders.filter(function(x){ return x.no.toLowerCase().indexOf(no.toLowerCase())>=0; });
+      if(hit.length===1){ setTimeout(function(){ detailModal(hit[0].id); },60); }
+      else toast(hit.length? '匹配到 '+hit.length+' 张工单':'未找到该工单号');
+      break; }
+    /* --- 派工 / 报工 --- */
+    case 'as-add': doAssignAdd(v); break;
+    case 'as-del': {
+      var a=findAssign(v); if(!a) break;
+      confirmBox('将该人员移出工单？其报工记录会一并删除。', function(){
+        S.assigns=S.assigns.filter(function(x){ return x.id!==v; });
+        S.reports=S.reports.filter(function(r){ return r.aid!==v; });
+        save(true); detailModal(a.oid); render(); toast('已移除');
+      }); break; }
+    case 'as-saveplan': {
+      $$('.a-plan').forEach(function(inp){ var aa=findAssign(inp.getAttribute('data-v')); if(aa) aa.planQty=num(inp.value); });
+      save(true); render(); toast('计划产量已保存'); detailModal(v); break; }
+    case 'rep-open': reportModal(v); break;
+    case 'rep-save': saveReport(v); break;
+    case 'rep-hist': histModal(v); break;
+    case 'rep-batch': saveBatchReport(v); break;
+    case 'rep-del': {
+      var rd=S.reports.filter(function(r){ return r.id===v; })[0];
+      var aid=rd?rd.aid:'';
+      S.reports=S.reports.filter(function(r){ return r.id!==v; });
+      save(true); closeModal(); render(); if(aid) histModal(aid); toast('已删除'); break; }
+    case 'rep-last': {
+      var la=findAssign(v); if(!la) break;
+      var last=S.reports.filter(function(r){ return r.aid===v; }).sort(function(x,y){ return y.date.localeCompare(x.date); })[0];
+      if(!last){ toast('暂无历史记录'); break; }
+      $('#r-qty').value=num(last.qty); $('#r-def').value=num(last.defect);
+      $('#r-hours').value=num(last.hours); $('#r-eff').value=num(last.eff);
+      toast('已带入上一次报工数据'); break; }
+    case 'po-ok': doPickOrder(v); break;
+    case 'qr-save': saveQuick(v); break;
+    /* --- 统计 --- */
+    case 'st-reset': UI.since=''; UI.until=''; UI.swid=''; UI.sgid=''; UI.stype=''; UI.soid=''; render(); break;
+    case 'st-csv': exportCSV('report'); break;
+    case 'sp-tab': UI.statTab=v; render(); break;
+    case 'sp-archived': UI.showArchived=el.checked; render(); break;
+    case 'sp-quick': {
+      var d=new Date();
+      if(v==='month'){ UI.since=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-01'; UI.until=''; }
+      else if(v==='lastmonth'){
+        var x=new Date(d.getFullYear(),d.getMonth()-1,1);
+        UI.since=x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-01';
+        var y=new Date(d.getFullYear(),d.getMonth(),0);
+        UI.until=y.getFullYear()+'-'+String(y.getMonth()+1).padStart(2,'0')+'-'+String(y.getDate()).padStart(2,'0');
+      } else { UI.since=''; UI.until=''; }
+      render(); break; }
+    case 'sp-csv': exportSettleCSV(); break;
+    /* --- 数据 --- */
+    case 'export-json': download('车间通讯录与排产_'+today()+'.json', JSON.stringify(S,null,2), 'application/json'); toast('已导出备份'); break;
+    case 'import-json': { var fi=$('#file-json'); if(fi){ fi.value=''; fi.click(); } break; }
+    case 'restore-snap': restore(v); break;
+    case 'save-settings': {
+      S.settings.stdHours=num($('#set-h').value)||8; S.settings.otRate=num($('#set-ot').value);
+      S.settings.miscRate=num($('#set-misc').value);
+      save(true); render(); toast('计价规则已保存'); break; }
+    case 'csv-staff': exportCSV('staff'); break;
+    case 'csv-wage': exportCSV('wage'); break;
+    case 'csv-report': exportCSV('report'); break;
+    case 'csv-order': exportCSV('order'); break;
+    case 'csv-misc': exportCSV('misc'); break;
+    case 'csv-gsettle': exportCSV('gsettle'); break;
+    case 'csv-dsettle': exportCSV('dsettle'); break;
+    case 'load-seed': confirmBox('载入示例数据会覆盖当前全部数据，确定继续？', function(){
+        S=seed(); save(true); render(); toast('示例数据已载入'); }); break;
+    case 'wipe': confirmBox('⚠️ 将清空全部人员、工单、派工与报工数据（可先导出 JSON 备份）。确定清空？', function(){
+        S=blank(); save(true); render(); toast('已清空'); }); break;
+    /* --- 归档 --- */
+    case 'toggle-arch': UI.showArchived=!UI.showArchived; render(); break;
+    case 'ord-archive': {
+      var od=findOrder(v); if(od){ od.archived=true; save(true); render(); toast('已归档：'+od.no); } break; }
+    case 'ord-unarchive': {
+      var odu=findOrder(v); if(odu){ odu.archived=false; save(true); render(); toast('已取消归档：'+odu.no); } break; }
+    case 'archive-done': {
+      var done=S.orders.filter(function(o){ return o.status==='done' && !o.archived; });
+      if(!done.length){ toast('没有可归档的已完成工单'); break; }
+      confirmBox('将归档全部 '+done.length+' 张「已完成」工单（归档后默认不显示，可在工具栏勾选「显示已归档」查看或取消归档）？', function(){
+        done.forEach(function(o){ o.archived=true; }); save(true); render(); toast('已归档 '+done.length+' 张工单');
+      }); break; }
+    default: break;
+  }
+}
+/* 文件导入 */
+document.addEventListener('change', function(ev){
+  var t=ev.target;
+  if(t.id==='file-json' && t.files && t.files[0]){
+    var fr=new FileReader();
+    fr.onload=function(){
+      var o=parse(fr.result);
+      if(!o){ toast('文件格式不正确'); return; }
+      confirmBox('导入将覆盖当前全部数据，确定继续？', function(){
+        S=normalize(o); save(true); render(); toast('导入成功');
+      });
+    };
+    fr.readAsText(t.files[0]);
+  }
+});
+/* 单个人员派工：先选工单 */
+function pickOrderForEmp(eid){
+  var e=findEmp(eid); if(!e) return;
+  var list=S.orders.filter(function(o){ return o.status!=='done'; });
+  if(!list.length){ toast('没有可派工的工单，请先新建工单'); return; }
+  var body=`<div class="note">把「${esc(e.name)}」派入所选工单。</div><div class="pick-list">${list.map(function(o){
+    var s=orderStat(o);
+    var has=S.assigns.filter(function(a){ return a.oid===o.id && a.eid===eid; })[0];
+    return `<label class="pick-item"><input type="radio" name="po" value="${o.id}" ${has?'disabled':''}>
+      <span class="nm">${esc(o.no)}</span><span class="mini-lab">${esc(o.name)}　${esc(wsName(o.wid))}　剩余 ${n0(Math.max(0,num(o.planQty)-s.good))} ${esc(o.unit)}</span>
+      ${has?'<span class="muted">已派入</span>':''}</label>`; }).join('')}</div>
+    <div class="form-grid" style="margin-top:10px">
+      ${fld('本单计划产量', `<input type="number" id="po-plan" value="">`)}
+      ${fld('本单计件单价', `<input type="number" step="0.01" id="po-rate" value="${e.type==='piece'?'':'0'}">`)}
+    </div>`;
+  openModal('派工 · '+e.name, body, `<button data-act="modal-close">取消</button><button class="pri" data-act="po-ok" data-v="${eid}">确定派入</button>`);
+  $$('.pick-item input[name=po]').forEach(function(r){
+    r.addEventListener('change', function(){ var o=findOrder(r.value); if(o&&e.type==='piece') $('#po-rate').value=n2(o.pieceRate); });
+  });
+}
+/* po-ok：单个人员派入指定工单 */
+function doPickOrder(eid){
+  var e=findEmp(eid); if(!e) return;
+  var sel=$$('.pick-item input[name=po]:checked')[0];
+  if(!sel){ toast('请选择工单'); return; }
+  var oid=sel.value, o=findOrder(oid);
+  if(!o) return;
+  if(S.assigns.filter(function(a){ return a.oid===oid && a.eid===eid; })[0]){ toast('该人员已在此工单中'); return; }
+  var planEl=$('#po-plan');
+  var plan=planEl && planEl.value!==''? num(planEl.value) : Math.max(1, Math.round(num(o.planQty)/4));
+  S.assigns.push({ id:uid('a'), oid:oid, eid:eid, planQty:plan,
+    rate: e.type==='piece'? ($('#po-rate').value!==''?num($('#po-rate').value):num(o.pieceRate)) : 0,
+    startDate:today(), note:'' });
+  if(o.status==='pending') o.status='doing';
+  save(true); closeModal(); toast('已派入 '+o.no); go('order'); detailModal(oid);
+}
+/* 批量派工：多人 → 一个工单 */
+function batchAssign(){
+  var list=S.orders.filter(function(o){ return o.status!=='done'; });
+  if(!list.length){ toast('没有可派工的工单'); return; }
+  var cands=S.employees.filter(function(e){
+    if(UI.wid && e.wid!==UI.wid) return false;
+    if(UI.gid && e.gid!==UI.gid) return false;
+    if(UI.q && (e.name+e.code).toLowerCase().indexOf(UI.q.toLowerCase())<0) return false;
+    return e.status==='在岗';
+  });
+  if(!cands.length){ toast('当前筛选下没有人员'); return; }
+  var body=`<div class="fld"><label>目标工单</label><select id="ba-oid">
+      ${list.map(function(o){ return `<option value="${o.id}">${esc(o.no)} ${esc(o.name)}</option>`; }).join('')}</select></div>
+    <div class="rowflex" style="margin:8px 0"><span class="lab">勾选人员（当前筛选 ${cands.length} 人）</span>
+      <span class="push"></span><button class="mini-btn" id="ba-all">全选</button><button class="mini-btn" id="ba-none">全不选</button></div>
+    <div class="pick-list">${cands.map(function(e){
+      return `<label class="pick-item"><input type="checkbox" class="ba-ck" value="${e.id}">
+        <span class="nm">${esc(e.name)}</span><span class="mini-lab">${esc(e.code)}　${esc(wsName(e.wid))}/${esc(grpName(e.gid))}</span>
+        <span class="badge ${e.type==='piece'?'b-piece':'b-day'}">${e.type==='piece'?'计件':'日工'}</span></label>`; }).join('')}</div>`;
+  openModal('批量派工', body, `<button data-act="modal-close">取消</button><button class="pri" id="ba-ok">确定派入</button>`);
+  $('#ba-all').addEventListener('click', function(){ $$('.ba-ck').forEach(function(c){ c.checked=true; }); });
+  $('#ba-none').addEventListener('click', function(){ $$('.ba-ck').forEach(function(c){ c.checked=false; }); });
+  $('#ba-ok').addEventListener('click', function(){
+    var oid=$('#ba-oid').value, o=findOrder(oid);
+    var sel=$$('.ba-ck:checked');
+    if(!sel.length){ toast('请勾选人员'); return; }
+    var added=0;
+    sel.forEach(function(c){
+      var eid=c.value, e=findEmp(eid);
+      if(S.assigns.filter(function(a){ return a.oid===oid&&a.eid===eid; })[0]) return;
+      S.assigns.push({ id:uid('a'), oid:oid, eid:eid, planQty:0,
+        rate: e.type==='piece'? num(o.pieceRate):0, startDate:today(), note:'' });
+      added++;
+    });
+    if(o.status==='pending') o.status='doing';
+    save(true); closeModal(); go('order'); toast('已派入 '+added+' 人'); detailModal(oid);
+  });
+}
+/* ==================== 启动 ==================== */
+function init(){
+  S=load();
+  var empty = !S.workshops.length && !S.employees.length && !S.orders.length;
+  if(empty && !localStorage.getItem(LS)){ S=seed(); save(); }
+  if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catch(function(){}); }
+  go('roster');
+  var h=(location.hash||'').replace('#','');
+  if(['order','stats','data','roster'].indexOf(h)>=0) go(h);
+  if(empty) setTimeout(function(){ toast('已载入示例数据，可在「④数据」里清空后自行录入'); }, 400);
+}
+init();
+
+</script>
+</body>
+</html>
